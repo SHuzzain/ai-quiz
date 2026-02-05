@@ -1,17 +1,17 @@
-/**
- * Public Layout - Landing page wrapper
- */
-"use client";
-
 import { ReactNode } from 'react';
 import Link from 'next/link';
 import { BookOpen, Sparkles } from 'lucide-react';
-
+import { auth } from '@clerk/nextjs/server';
+import { redirect } from 'next/navigation';
 interface PublicLayoutProps {
   children: ReactNode;
 }
 
-export default function PublicLayout({ children }: PublicLayoutProps) {
+export default async function PublicLayout({ children }: PublicLayoutProps) {
+  const { userId } = await auth();
+  if (userId) {
+    redirect("/student/dashboard");
+  }
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}

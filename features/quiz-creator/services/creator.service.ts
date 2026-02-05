@@ -1,15 +1,5 @@
-import {
-  Test,
-  Question,
-  Lesson,
-  TestWithQuestions,
-  ExtractedQuestions,
-} from "@/types";
-import { mockTests, mockQuestions, mockLessons } from "@/mocks/data";
-
-// Simulate network delay
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-const MOCK_DELAY = 500;
+import { Lesson, Question, Test } from "@prisma/client";
+import { TestWithQuestions, ExtractedQuestions } from "@/types";
 
 /**
  * Get all tests
@@ -18,24 +8,15 @@ export async function getTests(filters?: {
   status?: Test["status"];
   search?: string;
 }): Promise<Test[]> {
-  await delay(MOCK_DELAY);
+  const params = new URLSearchParams();
+  if (filters?.status) params.append("status", filters.status);
+  if (filters?.search) params.append("search", filters.search);
 
-  let filtered = [...mockTests];
+  const response = await fetch(`/api/tests?${params.toString()}`);
+  if (!response.ok) throw new Error("Failed to fetch tests");
 
-  if (filters?.status) {
-    filtered = filtered.filter((t) => t.status === filters.status);
-  }
-
-  if (filters?.search) {
-    const search = filters.search.toLowerCase();
-    filtered = filtered.filter(
-      (t) =>
-        t.title.toLowerCase().includes(search) ||
-        t.description.toLowerCase().includes(search),
-    );
-  }
-
-  return filtered;
+  const data = await response.json();
+  return data.data;
 }
 
 /**
@@ -43,73 +24,84 @@ export async function getTests(filters?: {
  */
 export async function getTestWithQuestions(
   testId: string,
-): Promise<TestWithQuestions | null> {
-  await delay(MOCK_DELAY);
+): Promise<(Test & { questions: Question[] }) | null> {
+  const response = await fetch(`/api/tests/${testId}`);
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error("Failed to fetch test");
 
-  const test = mockTests.find((t) => t.id === testId);
-  if (!test) return null;
-
-  const questions = mockQuestions[testId] || [];
-
-  return { ...test, questions };
+  return response.json();
 }
 
 /**
  * Create a new test
  */
-export async function createTest(data: {
-  title: string;
-  description: string;
-  scheduledDate: Date;
-  duration: number;
-  lessonId?: string;
-}): Promise<Test> {
-  await delay(MOCK_DELAY);
+export async function createTest(
+  data: Partial<Test> & { questions: Question[] },
+): Promise<Test> {
+  const response = await fetch("/api/tests", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
 
-  const newTest: Test = {
-    id: `test-${Date.now()}`,
-    ...data,
-    createdAt: new Date(),
-    createdBy: "admin-1",
-    status: "draft",
-    questionCount: 0,
-  };
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to create test");
+  }
 
-  return newTest;
+  return response.json();
 }
 
 /**
- * Update test
+ * Update a test
  */
 export async function updateTest(
   testId: string,
   data: Partial<Test>,
 ): Promise<Test> {
-  await delay(MOCK_DELAY);
+  const response = await fetch(`/api/tests/${testId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
 
-  const test = mockTests.find((t) => t.id === testId);
-  if (!test) throw new Error("Test not found");
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to update test");
+  }
 
-  return { ...test, ...data };
+  return response.json();
 }
 
 /**
- * Delete test
+ * Delete a test
  */
 export async function deleteTest(testId: string): Promise<void> {
-  await delay(MOCK_DELAY);
+  const response = await fetch(`/api/tests/${testId}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to delete test");
+  }
 }
 
 /**
- * Extract questions from uploaded file (AI mock)
+ * Extract questions from uploaded file
  */
 export async function extractQuestionsFromFile(data: {
-  file: File;
+  files: File[];
   questionCount: number;
+  topics?: string[];
 }): Promise<ExtractedQuestions> {
   const formData = new FormData();
-  formData.append("file", data.file);
+  data.files.forEach((file) => formData.append("files", file));
   formData.append("questionCount", String(data.questionCount));
+
+  if (data.topics) {
+    formData.append("topics", JSON.stringify(data.topics));
+  }
 
   const response = await fetch("/api/extract-questions", {
     method: "POST",
@@ -125,62 +117,8 @@ export async function extractQuestionsFromFile(data: {
 }
 
 /**
- * Add question to test
+ * Generate hints for a question
  */
-export async function addQuestion(
-  testId: string,
-  question: Omit<Question, "id" | "testId">,
-): Promise<Question> {
-  await delay(MOCK_DELAY);
-
-  const newQuestion: Question = {
-    id: `q-${Date.now()}`,
-    testId,
-    ...question,
-  };
-
-  return newQuestion;
-}
-
-/**
- * Update question
- */
-export async function updateQuestion(
-  questionId: string,
-  data: Partial<Question>,
-): Promise<Question> {
-  await delay(MOCK_DELAY);
-
-  for (const questions of Object.values(mockQuestions)) {
-    const question = questions.find((q) => q.id === questionId);
-    if (question) {
-      return { ...question, ...data };
-    }
-  }
-
-  throw new Error("Question not found");
-}
-
-/**
- * Delete question
- */
-export async function deleteQuestion(questionId: string): Promise<void> {
-  await delay(MOCK_DELAY);
-}
-
-/**
- * AI-guess answer for a question (mock)
- */
-export async function guessAnswer(questionText: string): Promise<string> {
-  await delay(1500);
-
-  if (questionText.toLowerCase().includes("planet")) return "Earth";
-  if (questionText.toLowerCase().includes("color")) return "blue";
-  if (questionText.toLowerCase().includes("animal")) return "dog";
-
-  return "example answer";
-}
-
 export async function generateHints(data: {
   questionText: string;
   correctAnswer: string;
@@ -190,13 +128,18 @@ export async function generateHints(data: {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
+
   if (!response.ok) {
     const errorData = await response.json();
     throw new Error(errorData.error || "Failed to generate hints.");
   }
+
   return response.json();
 }
 
+/**
+ * Generate micro-learning content
+ */
 export async function generateMicroLearning(data: {
   questionText: string;
   correctAnswer: string;
@@ -206,48 +149,104 @@ export async function generateMicroLearning(data: {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
+
   if (!response.ok) {
     const errorData = await response.json();
-    throw new Error(errorData.error || "Failed to generate micro-learning.");
+    throw new Error(
+      errorData.error || "Failed to generate micro-learning content.",
+    );
   }
+
   return response.json();
 }
 
 /**
- * Get all lessons
+ * Analyze document
  */
+export async function analyzeDocument(
+  files: (
+    | File
+    | { name: string; text: string; type: "pdf" }
+    | { file: File; name: string; type: "file" }
+  )[],
+  clarificationAnswer?: string,
+) {
+  const formData = new FormData();
+
+  // Handle different file types
+  files.forEach(async (item) => {
+    if ("text" in item) {
+      // It's a processed PDF with text
+      const text =
+        typeof item.text === "string" ? item.text : await item.text();
+      formData.append(
+        "files",
+        new Blob([text], { type: "text/plain" }),
+        item.name + ".txt",
+      );
+    } else if ("file" in item) {
+      // It's a wrapper object
+      formData.append("files", item.file);
+    } else {
+      // It's a raw File object
+      formData.append("files", item);
+    }
+  });
+
+  if (clarificationAnswer) {
+    formData.append("clarificationAnswer", clarificationAnswer);
+  }
+
+  const response = await fetch("/api/analyze-document", {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to analyze document");
+  }
+
+  return response.json();
+}
+
+// Placeholder functions for compatibility
+// These functionalities are currently handled within the main Test create/update flow
+
+export async function addQuestion(
+  testId: string,
+  question: Omit<Question, "id" | "testId">,
+): Promise<Question> {
+  throw new Error("Use updateTest to add questions");
+}
+
+export async function updateQuestion(
+  questionId: string,
+  data: Partial<Question>,
+): Promise<Question> {
+  throw new Error("Use updateTest to update questions");
+}
+
+export async function deleteQuestion(questionId: string): Promise<void> {
+  throw new Error("Use updateTest to delete questions");
+}
+
+export async function guessAnswer(questionText: string): Promise<string> {
+  // This could be an API call if needed
+  return "";
+}
+
 export async function getLessons(): Promise<Lesson[]> {
-  await delay(MOCK_DELAY);
-  return [...mockLessons];
+  // TODO: Implement Lesson API
+  return [];
 }
 
-/**
- * Upload lesson file
- */
-export async function uploadLesson(data: {
-  title: string;
-  description?: string;
-  file: File;
-}): Promise<Lesson> {
-  await delay(1000);
-
-  const newLesson: Lesson = {
-    id: `lesson-${Date.now()}`,
-    title: data.title,
-    description: data.description,
-    fileName: data.file.name,
-    fileUrl: URL.createObjectURL(data.file),
-    fileType: data.file.type,
-    uploadedAt: new Date(),
-    uploadedBy: "admin-1",
-  };
-
-  return newLesson;
+export async function uploadLesson(data: FormData): Promise<Lesson> {
+  // TODO: Implement Lesson API
+  throw new Error("Not implemented");
 }
 
-/**
- * Delete lesson
- */
-export async function deleteLesson(lessonId: string): Promise<void> {
-  await delay(MOCK_DELAY);
+export async function deleteLesson(id: string): Promise<void> {
+  // TODO: Implement Lesson API
+  throw new Error("Not implemented");
 }

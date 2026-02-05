@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as creatorService from "../services/creator.service";
-import { Test, Question } from "@/types";
+import { Question, Test } from "@prisma/client";
 
 export const creatorQueryKeys = {
   tests: (filters?: { status?: Test["status"]; search?: string }) =>
@@ -10,7 +10,7 @@ export const creatorQueryKeys = {
   lessons: ["lessons"] as const,
 };
 
-export function useTests(filters?: {
+export function useGetTests(filters?: {
   status?: Test["status"];
   search?: string;
 }) {
@@ -20,24 +20,23 @@ export function useTests(filters?: {
   });
 }
 
-export function useTest(testId: string) {
+// Alias for compatibility if needed, but prefer useGetTests
+export const useTests = useGetTests;
+
+export function useGetTest(testId: string | null) {
   return useQuery({
-    queryKey: creatorQueryKeys.test(testId),
+    queryKey: creatorQueryKeys.test(testId || ""),
     queryFn: async () => {
+      if (!testId) return null;
       const test = await creatorService.getTestWithQuestions(testId);
-      return test as Test | null;
+      return test;
     },
     enabled: !!testId,
   });
 }
 
-export function useTestWithQuestions(testId: string) {
-  return useQuery({
-    queryKey: creatorQueryKeys.testWithQuestions(testId),
-    queryFn: () => creatorService.getTestWithQuestions(testId),
-    enabled: !!testId,
-  });
-}
+// Alias for compatibility
+export const useTest = useGetTest;
 
 export function useCreateTest() {
   const queryClient = useQueryClient();
@@ -54,11 +53,11 @@ export function useUpdateTest() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ testId, data }: { testId: string; data: Partial<Test> }) =>
-      creatorService.updateTest(testId, data),
-    onSuccess: (_, { testId }) => {
+    mutationFn: ({ id, data }: { id: string; data: Partial<Test> }) =>
+      creatorService.updateTest(id, data),
+    onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({
-        queryKey: creatorQueryKeys.test(testId),
+        queryKey: creatorQueryKeys.test(id),
       });
       queryClient.invalidateQueries({ queryKey: ["tests"] });
     },
@@ -78,8 +77,11 @@ export function useDeleteTest() {
 
 export function useExtractQuestions() {
   return useMutation({
-    mutationFn: (data: { file: File; questionCount: number }) =>
-      creatorService.extractQuestionsFromFile(data),
+    mutationFn: (data: {
+      files: File[];
+      questionCount: number;
+      topics?: string[];
+    }) => creatorService.extractQuestionsFromFile(data),
   });
 }
 
@@ -176,5 +178,21 @@ export function useDeleteLesson() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: creatorQueryKeys.lessons });
     },
+  });
+}
+
+export function useAnalyzeDocument() {
+  return useMutation({
+    mutationFn: ({
+      files,
+      clarificationAnswer,
+    }: {
+      files: (
+        | File
+        | { name: string; text: string; type: "pdf" }
+        | { file: File; name: string; type: "file" }
+      )[];
+      clarificationAnswer?: string;
+    }) => creatorService.analyzeDocument(files, clarificationAnswer),
   });
 }

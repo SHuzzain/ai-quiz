@@ -1,13 +1,11 @@
 import { NextResponse } from "next/server";
-import { extractQuestionsFromText } from "@/features/quiz-creator/services/openai.service";
-import officeParser from "officeparser";
+import { analyzeDocumentContent } from "@/features/quiz-creator/services/openai.service";
+import officeParser, { OfficeParserAST } from "officeparser";
 
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
     const files = formData.getAll("files") as File[];
-    const countStr = formData.get("questionCount") as string;
-    const count = countStr ? parseInt(countStr, 10) : 5;
 
     if (!files || files.length === 0) {
       return NextResponse.json(
@@ -16,18 +14,37 @@ export async function POST(request: Request) {
       );
     }
 
+    const texts = formData.get("texts");
+
     let combinedTextContent = "";
+
+    if (texts && typeof texts === "string") {
+      try {
+        const parsedTexts = JSON.parse(texts) as {
+          name: string;
+          content: string;
+        }[];
+        for (const item of parsedTexts) {
+          combinedTextContent += `\n--- SOURCE: ${item.name} ---\n${item.content}\n`;
+        }
+      } catch (e) {
+        console.error("Failed to parse texts from FormData", e);
+      }
+    }
 
     for (const file of files) {
       const buffer = Buffer.from(await file.arrayBuffer());
       let fileText = "";
 
       try {
-        const parsedData: unknown = await officeParser.parseOffice(buffer);
+        console.log("file", file);
+
+        const parsedData = await officeParser.parseOffice(buffer);
+
         fileText =
           typeof parsedData === "string"
             ? parsedData
-            : JSON.stringify(parsedData);
+            : JSON.stringify(parsedData.toText());
       } catch (parseError) {
         console.error(`officeParser error for ${file.name}:`, parseError);
         fileText = await file.text();
@@ -43,21 +60,22 @@ export async function POST(request: Request) {
       );
     }
 
-    const topicsStr = formData.get("topics") as string;
-    const topics = topicsStr ? JSON.parse(topicsStr) : undefined;
+    const clarificationAnswer = formData.get("clarificationAnswer") as
+      | string
+      | undefined;
 
-    const result = await extractQuestionsFromText(
+    const analysis = await analyzeDocumentContent(
       combinedTextContent,
-      count,
-      topics,
+      clarificationAnswer,
     );
-    return NextResponse.json(result);
+
+    return NextResponse.json(analysis);
   } catch (error) {
-    console.error("Error in extract-questions route:", error);
+    console.error("Error in analyze-document route:", error);
     const errorMessage =
       error instanceof Error ? error.message : "An unknown error occurred.";
     return NextResponse.json(
-      { error: "Failed to process file.", details: errorMessage },
+      { error: "Failed to analyze document.", details: errorMessage },
       { status: 500 },
     );
   }

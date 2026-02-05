@@ -13,7 +13,7 @@ import {
   Trash2,
   Eye
 } from 'lucide-react';
-import { useTests, useDeleteTest } from '@/features/quiz-creator';
+import { useGetTests, useDeleteTest } from '@/features/quiz-creator';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -29,17 +29,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Test } from '@/types';
+import { Test } from "@prisma/client";
 
 export default function AdminTestsPage() {
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<Test['status']>('DRAFT');
 
-  const { data: tests, isLoading } = useTests({
-    status: statusFilter !== 'all' ? statusFilter as Test['status'] : undefined,
+  const { data, isLoading } = useGetTests({
+    status: statusFilter !== 'DRAFT' ? statusFilter : undefined,
     search: search || undefined,
   });
   const deleteTest = useDeleteTest();
+  const tests = data || [];
 
   const handleDelete = async (testId: string) => {
     if (confirm('Are you sure you want to delete this test?')) {
@@ -49,12 +50,12 @@ export default function AdminTestsPage() {
 
   const getStatusBadge = (status: Test['status']) => {
     const styles = {
-      draft: 'bg-muted text-muted-foreground',
-      scheduled: 'bg-warning/10 text-warning',
-      active: 'bg-success/10 text-success',
-      completed: 'bg-primary/10 text-primary',
+      DRAFT: 'bg-muted text-muted-foreground',
+      SCHEDULED: 'bg-warning/10 text-warning',
+      ACTIVE: 'bg-success/10 text-success',
+      COMPLETED: 'bg-primary/10 text-primary',
     };
-    return styles[status] || styles.draft;
+    return styles[status] || styles.DRAFT;
   };
 
   return (
@@ -84,16 +85,15 @@ export default function AdminTestsPage() {
             className="pl-9"
           />
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <Select value={statusFilter} onValueChange={(e) => setStatusFilter(e as Test['status'])}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Filter by status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="draft">Draft</SelectItem>
-            <SelectItem value="scheduled">Scheduled</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
+            <SelectItem value="DRAFT">Draft</SelectItem>
+            <SelectItem value="SCHEDULED">Scheduled</SelectItem>
+            <SelectItem value="ACTIVE">Active</SelectItem>
+            <SelectItem value="COMPLETED">Completed</SelectItem>
           </SelectContent>
         </Select>
       </div>

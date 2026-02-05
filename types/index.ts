@@ -2,7 +2,7 @@
 // Core Types for AI Learning Platform
 // ============================================
 
-export type UserRole = 'admin' | 'student';
+export type UserRole = "admin" | "student";
 
 export interface User {
   id: string;
@@ -32,7 +32,7 @@ export interface Test {
   scheduledDate: Date;
   createdAt: Date;
   createdBy: string;
-  status: 'draft' | 'scheduled' | 'active' | 'completed';
+  status: "draft" | "scheduled" | "active" | "completed";
   questionCount: number;
   duration: number; // in minutes
   lessonId?: string;
@@ -62,7 +62,7 @@ export interface TestAttempt {
   studentId: string;
   startedAt: Date;
   completedAt?: Date;
-  status: 'in_progress' | 'completed' | 'abandoned';
+  status: "in_progress" | "completed" | "abandoned";
   score?: number;
   totalQuestions: number;
   correctAnswers: number;
@@ -144,6 +144,16 @@ export interface ApiResponse<T> {
   message?: string;
 }
 
+export interface GetTestsResponse {
+  data: Test[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
 export interface PaginatedResponse<T> {
   data: T[];
   total: number;
@@ -159,12 +169,12 @@ export interface PaginatedResponse<T> {
 export interface FileUpload {
   file: File;
   progress: number;
-  status: 'pending' | 'uploading' | 'completed' | 'error';
+  status: "pending" | "uploading" | "completed" | "error";
   error?: string;
 }
 
 export interface ExtractedQuestions {
-  questions: Omit<Question, 'id' | 'testId'>[];
+  questions: Omit<Question, "id" | "testId">[];
   rawText: string;
   confidence: number;
 }
