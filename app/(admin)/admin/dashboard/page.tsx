@@ -33,7 +33,7 @@ export default function AdminDashboard() {
     },
     {
       title: 'Active Tests',
-      value: tests?.filter(t => t.status === 'active').length || 0,
+      value: tests?.filter(t => t.status === 'ACTIVE').length || 0,
       icon: FileText,
       change: '+3',
       color: 'text-kid-purple',
@@ -132,13 +132,13 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${test.status === 'active'
-                        ? 'bg-success/10 text-success'
-                        : test.status === 'scheduled'
-                          ? 'bg-warning/10 text-warning'
-                          : test.status === 'draft'
-                            ? 'bg-muted text-muted-foreground'
-                            : 'bg-muted text-muted-foreground'
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${test.status === 'ACTIVE'
+                      ? 'bg-success/10 text-success'
+                      : test.status === 'SCHEDULED'
+                        ? 'bg-warning/10 text-warning'
+                        : test.status === 'DRAFT'
+                          ? 'bg-muted text-muted-foreground'
+                          : 'bg-muted text-muted-foreground'
                       }`}>
                       {test.status}
                     </span>

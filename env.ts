@@ -7,12 +7,13 @@ export const env = createEnv({
     DATABASE_URL: z.string().min(1),
   },
   client: {
-    // Nothing here yet
+    NEXT_PUBLIC_API_URL: z.string().url(),
   },
   // If you're using Next.js < 13.4.4, you'll need to specify the runtimeEnv manually
   runtimeEnv: {
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
     DATABASE_URL: process.env.DATABASE_URL,
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
   },
   // For Next.js >= 13.4.4, you can rely on the Next.js process management.
   //   // For Next.js >= 13.4.4, you can rely on the Next.js process management.

@@ -1,5 +1,8 @@
-import { Lesson, Question, Test } from "@prisma/client";
-import { TestWithQuestions, ExtractedQuestions } from "@/types";
+import { Lesson, Question, Test } from "@/types/db";
+import { apiFetch } from "@/lib/api-client";
+import { ExtractedQuestions, TestWithQuestions } from "@/types";
+import { env } from "@/env";
+import { SESSION_TOKEN } from "@/helper/storage";
 
 /**
  * Get all tests
@@ -12,10 +15,9 @@ export async function getTests(filters?: {
   if (filters?.status) params.append("status", filters.status);
   if (filters?.search) params.append("search", filters.search);
 
-  const response = await fetch(`/api/tests?${params.toString()}`);
-  if (!response.ok) throw new Error("Failed to fetch tests");
-
-  const data = await response.json();
+  const data = await apiFetch.get<{ data: Test[] }>(
+    `/api/tests?${params.toString()}`,
+  );
   return data.data;
 }
 
@@ -25,31 +27,39 @@ export async function getTests(filters?: {
 export async function getTestWithQuestions(
   testId: string,
 ): Promise<(Test & { questions: Question[] }) | null> {
-  const response = await fetch(`/api/tests/${testId}`);
-  if (response.status === 404) return null;
-  if (!response.ok) throw new Error("Failed to fetch test");
-
-  return response.json();
+  try {
+    return await apiFetch.get<Test & { questions: Question[] }>(
+      `/api/tests/${testId}`,
+    );
+  } catch (error) {
+    return null;
+  }
 }
 
 /**
  * Create a new test
  */
+export type QuestionInput = Omit<
+  Question,
+  | "id"
+  | "testId"
+  | "createdAt"
+  | "updatedAt"
+  | "order"
+  | "maxAttemptsBeforeStudy"
+> & {
+  id?: string;
+  order?: number;
+  maxAttemptsBeforeStudy?: number;
+};
+
+/**
+ * Create a new test
+ */
 export async function createTest(
-  data: Partial<Test> & { questions: Question[] },
+  data: Partial<Test> & { questions: QuestionInput[] },
 ): Promise<Test> {
-  const response = await fetch("/api/tests", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || "Failed to create test");
-  }
-
-  return response.json();
+  return apiFetch.post<Test>("/api/tests", data);
 }
 
 /**
@@ -57,34 +67,16 @@ export async function createTest(
  */
 export async function updateTest(
   testId: string,
-  data: Partial<Test>,
+  data: Partial<Test> & { questions?: QuestionInput[] },
 ): Promise<Test> {
-  const response = await fetch(`/api/tests/${testId}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || "Failed to update test");
-  }
-
-  return response.json();
+  return apiFetch.put<Test>(`/api/tests/${testId}`, data);
 }
 
 /**
  * Delete a test
  */
 export async function deleteTest(testId: string): Promise<void> {
-  const response = await fetch(`/api/tests/${testId}`, {
-    method: "DELETE",
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || "Failed to delete test");
-  }
+  await apiFetch.delete(`/api/tests/${testId}`);
 }
 
 /**
@@ -103,10 +95,41 @@ export async function extractQuestionsFromFile(data: {
     formData.append("topics", JSON.stringify(data.topics));
   }
 
-  const response = await fetch("/api/extract-questions", {
-    method: "POST",
-    body: formData,
-  });
+  /*
+   * Note: The original implementation used FormData for file upload.
+   * Since apiFetch supports JSON by default in post/put, for FormData we might need to use `connect` directly
+   * or a custom wrapper if apiFetch doesn't handle FormData automatically.
+   * However, let's look at apiFetch implementation.
+   * It sets Content-Type to application/json automatically which breaks FormData.
+   * So we should use a direct apiFetch call but override headers to let browser set boundary,
+   * OR update apiFetch to handle FormData.
+   *
+   * Given the constraints, I will use a direct generic call but we need to handle the headers carefully.
+   * Actually, let's import `connect` if exported or just use the pattern but without Content-Type json for formdata.
+   * The user provided `apiFetch` hardcodes Content-Type: application/json.
+   * I will workaround this by passing a custom header that overrides it or by using raw fetch for file upload
+   * but still pointing to the new backend.
+   *
+   * To keep it clean and use the authenticated client helper, I should ideally update apiFetch or use a raw fetch with the token.
+   *
+   * Let's check `lib/api-client.ts` again. It exports `apiFetch`.
+   * It hardcodes Content-Type: application/json.
+   *
+   * I will implement a `uploadFile` helper in this file locally or just use raw fetch
+   * using the SESSION_TOKEN helper if available, or just keeping the existing logic but updating the URL.
+   */
+
+  // Using raw fetch but with correct full URL
+  const token = typeof window !== "undefined" ? SESSION_TOKEN.get() : null;
+
+  const response = await fetch(
+    `${env.NEXT_PUBLIC_API_URL}/api/extract-questions`,
+    {
+      method: "POST",
+      body: formData,
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    },
+  );
 
   if (!response.ok) {
     const errorData = await response.json();
@@ -123,18 +146,7 @@ export async function generateHints(data: {
   questionText: string;
   correctAnswer: string;
 }): Promise<{ hints: string[] }> {
-  const response = await fetch("/api/generate-hints", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || "Failed to generate hints.");
-  }
-
-  return response.json();
+  return apiFetch.post<{ hints: string[] }>("/api/generate-hints", data);
 }
 
 /**
@@ -144,20 +156,10 @@ export async function generateMicroLearning(data: {
   questionText: string;
   correctAnswer: string;
 }): Promise<{ microLearning: string }> {
-  const response = await fetch("/api/generate-micro-learning", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(
-      errorData.error || "Failed to generate micro-learning content.",
-    );
-  }
-
-  return response.json();
+  return apiFetch.post<{ microLearning: string }>(
+    "/api/generate-micro-learning",
+    data,
+  );
 }
 
 /**
@@ -197,10 +199,17 @@ export async function analyzeDocument(
     formData.append("clarificationAnswer", clarificationAnswer);
   }
 
-  const response = await fetch("/api/analyze-document", {
-    method: "POST",
-    body: formData,
-  });
+  // Manual fetch for FormData to avoid Content-Type application/json from apiFetch
+  const token = typeof window !== "undefined" ? SESSION_TOKEN.get() : null;
+
+  const response = await fetch(
+    `${env.NEXT_PUBLIC_API_URL}/api/analyze-document`,
+    {
+      method: "POST",
+      body: formData,
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    },
+  );
 
   if (!response.ok) {
     const error = await response.json();

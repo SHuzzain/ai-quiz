@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as creatorService from "../services/creator.service";
-import { Question, Test } from "@prisma/client";
+import { Question, Test } from "@/types/db";
 
 export const creatorQueryKeys = {
   tests: (filters?: { status?: Test["status"]; search?: string }) =>

@@ -29,7 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Test } from "@prisma/client";
+import { Test } from '@/types/db';
 
 export default function AdminTestsPage() {
   const [search, setSearch] = useState('');
