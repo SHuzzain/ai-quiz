@@ -21,6 +21,7 @@ async function connect<T = unknown>(
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...options.headers,
       },
+      credentials: "include",
       // ✅ Next.js cache control
       cache: options.revalidate === false ? "no-store" : "force-cache",
       next: options.revalidate ? { revalidate: options.revalidate } : undefined,

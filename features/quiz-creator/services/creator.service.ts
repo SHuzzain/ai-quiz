@@ -1,8 +1,9 @@
 import { Lesson, Question, Test } from "@/types/db";
 import { apiFetch } from "@/lib/api-client";
-import { ExtractedQuestions, TestWithQuestions } from "@/types";
+import { ExtractedQuestions } from "@/types";
 import { env } from "@/env";
 import { SESSION_TOKEN } from "@/helper/storage";
+import { API_ROUTES } from "@/config/routes";
 
 /**
  * Get all tests
@@ -10,13 +11,19 @@ import { SESSION_TOKEN } from "@/helper/storage";
 export async function getTests(filters?: {
   status?: Test["status"];
   search?: string;
+  userId?: string | null;
+  page?: number;
+  limit?: number;
 }): Promise<Test[]> {
   const params = new URLSearchParams();
   if (filters?.status) params.append("status", filters.status);
   if (filters?.search) params.append("search", filters.search);
+  if (filters?.userId) params.append("userId", filters.userId);
+  if (filters?.page) params.append("page", filters.page.toString());
+  if (filters?.limit) params.append("limit", filters.limit.toString());
 
   const data = await apiFetch.get<{ data: Test[] }>(
-    `/api/tests?${params.toString()}`,
+    `${API_ROUTES.TESTS.ROOT}?${params.toString()}`,
   );
   return data.data;
 }
@@ -29,9 +36,9 @@ export async function getTestWithQuestions(
 ): Promise<(Test & { questions: Question[] }) | null> {
   try {
     return await apiFetch.get<Test & { questions: Question[] }>(
-      `/api/tests/${testId}`,
+      API_ROUTES.TESTS.BY_ID(testId),
     );
-  } catch (error) {
+  } catch {
     return null;
   }
 }
@@ -59,7 +66,7 @@ export type QuestionInput = Omit<
 export async function createTest(
   data: Partial<Test> & { questions: QuestionInput[] },
 ): Promise<Test> {
-  return apiFetch.post<Test>("/api/tests", data);
+  return apiFetch.post<Test>(API_ROUTES.TESTS.ROOT, data);
 }
 
 /**
@@ -69,14 +76,14 @@ export async function updateTest(
   testId: string,
   data: Partial<Test> & { questions?: QuestionInput[] },
 ): Promise<Test> {
-  return apiFetch.put<Test>(`/api/tests/${testId}`, data);
+  return apiFetch.put<Test>(API_ROUTES.TESTS.BY_ID(testId), data);
 }
 
 /**
  * Delete a test
  */
 export async function deleteTest(testId: string): Promise<void> {
-  await apiFetch.delete(`/api/tests/${testId}`);
+  await apiFetch.delete(API_ROUTES.TESTS.BY_ID(testId));
 }
 
 /**
@@ -123,7 +130,7 @@ export async function extractQuestionsFromFile(data: {
   const token = typeof window !== "undefined" ? SESSION_TOKEN.get() : null;
 
   const response = await fetch(
-    `${env.NEXT_PUBLIC_API_URL}/api/extract-questions`,
+    `${env.NEXT_PUBLIC_API_URL}${API_ROUTES.AI.EXTRACT_QUESTIONS}`,
     {
       method: "POST",
       body: formData,
@@ -146,7 +153,7 @@ export async function generateHints(data: {
   questionText: string;
   correctAnswer: string;
 }): Promise<{ hints: string[] }> {
-  return apiFetch.post<{ hints: string[] }>("/api/generate-hints", data);
+  return apiFetch.post<{ hints: string[] }>(API_ROUTES.AI.GENERATE_HINTS, data);
 }
 
 /**
@@ -157,7 +164,7 @@ export async function generateMicroLearning(data: {
   correctAnswer: string;
 }): Promise<{ microLearning: string }> {
   return apiFetch.post<{ microLearning: string }>(
-    "/api/generate-micro-learning",
+    API_ROUTES.AI.GENERATE_MICRO_LEARNING,
     data,
   );
 }
@@ -176,16 +183,14 @@ export async function analyzeDocument(
   const formData = new FormData();
 
   // Handle different file types
-  files.forEach(async (item) => {
+  const texts: { name: string; content: string }[] = [];
+
+  for (const item of files) {
     if ("text" in item) {
       // It's a processed PDF with text
-      const text =
+      const content =
         typeof item.text === "string" ? item.text : await item.text();
-      formData.append(
-        "files",
-        new Blob([text], { type: "text/plain" }),
-        item.name + ".txt",
-      );
+      texts.push({ name: item.name, content });
     } else if ("file" in item) {
       // It's a wrapper object
       formData.append("files", item.file);
@@ -193,7 +198,11 @@ export async function analyzeDocument(
       // It's a raw File object
       formData.append("files", item);
     }
-  });
+  }
+
+  if (texts.length > 0) {
+    formData.append("texts", JSON.stringify(texts));
+  }
 
   if (clarificationAnswer) {
     formData.append("clarificationAnswer", clarificationAnswer);
@@ -203,7 +212,7 @@ export async function analyzeDocument(
   const token = typeof window !== "undefined" ? SESSION_TOKEN.get() : null;
 
   const response = await fetch(
-    `${env.NEXT_PUBLIC_API_URL}/api/analyze-document`,
+    `${env.NEXT_PUBLIC_API_URL}${API_ROUTES.AI.ANALYZE_DOCUMENT}`,
     {
       method: "POST",
       body: formData,

@@ -5,7 +5,7 @@ export type TestStatus = "DRAFT" | "SCHEDULED" | "ACTIVE" | "COMPLETED";
 export type AttemptStatus = "IN_PROGRESS" | "COMPLETED" | "ABANDONED";
 
 export interface User {
-  id: string;
+  _id: string;
   email: string;
   name: string | null;
   clerkId: string;
@@ -64,7 +64,7 @@ export interface TestAttempt {
   status: AttemptStatus;
   basicScore: number | null;
   aiScore: number | null;
-  aiScoreBreakdown: any | null;
+  aiScoreBreakdown: unknown | null;
   totalQuestions: number;
   correctAnswers: number;
   hintsUsed: number;

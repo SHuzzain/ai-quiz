@@ -127,10 +127,13 @@ export interface StudentAnalytics {
 }
 
 export interface OverallAnalytics {
-  totalTests: number;
-  totalStudents: number;
-  totalAttempts: number;
-  averageScore: number;
+  title: string;
+  value: number | string;
+  state: string;
+}
+
+export interface DashboardAnalytics {
+  overallAnalytic: OverallAnalytics[];
   testAnalytics: TestAnalytics[];
 }
 

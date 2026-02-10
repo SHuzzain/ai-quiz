@@ -13,10 +13,14 @@ export const creatorQueryKeys = {
 export function useGetTests(filters?: {
   status?: Test["status"];
   search?: string;
+  userId?: string | null;
+  page?: number;
+  limit?: number;
 }) {
   return useQuery({
     queryKey: creatorQueryKeys.tests(filters),
     queryFn: () => creatorService.getTests(filters),
+    enabled: !!filters?.userId, // Only fetch if userId is available
   });
 }
 

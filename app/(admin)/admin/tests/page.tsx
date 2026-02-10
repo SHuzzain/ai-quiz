@@ -30,14 +30,17 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Test } from '@/types/db';
+import { useCurrentUser } from '@/features/auth/hooks/useCurrentUser';
 
 export default function AdminTestsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<Test['status']>('DRAFT');
-
+  const { data: user } = useCurrentUser();
+  console.log({ user })
   const { data, isLoading } = useGetTests({
     status: statusFilter !== 'DRAFT' ? statusFilter : undefined,
     search: search || undefined,
+    userId: user?._id
   });
   const deleteTest = useDeleteTest();
   const tests = data || [];

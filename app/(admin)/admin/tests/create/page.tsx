@@ -59,7 +59,7 @@ export default function TestFormPage({ mode = 'create', testId }: TestFormPagePr
     <div className="max-w-4xl mx-auto space-y-8 py-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/60">
+          <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-linear-to-r from-primary to-primary/60">
             {mode === 'create' ? 'Create New Test' : 'Edit Test'}
           </h1>
           <p className="text-muted-foreground mt-1">

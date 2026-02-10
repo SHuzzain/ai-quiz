@@ -94,7 +94,7 @@ export function FileUploadZone({
                         {uploadedFiles.length > 0 && (
                             <Button
                                 type="button"
-                                onClick={handleAnalyzeFiles}
+                                onClick={() => handleAnalyzeFiles()}
                                 disabled={isAnalyzing || isExtracting}
                                 className="w-full font-semibold"
                             >

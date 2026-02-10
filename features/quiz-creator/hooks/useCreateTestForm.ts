@@ -15,6 +15,8 @@ import {
   useAnalyzeDocument,
   AIConversationDrawer,
 } from "@/features/quiz-creator";
+import { useAuth } from "@clerk/nextjs";
+import { useCurrentUser } from "@/features/auth/hooks/useCurrentUser";
 
 const questionSchema = z.object({
   id: z.string().optional(),
@@ -46,6 +48,7 @@ export function useCreateTestForm({
   testId,
 }: UseCreateTestFormProps = {}) {
   const router = useRouter();
+  const { data } = useCurrentUser();
   const createTestMutation = useCreateTest();
   const updateTestMutation = useUpdateTest();
   const extractQuestionsMutation = useExtractQuestions();
@@ -91,10 +94,12 @@ export function useCreateTestForm({
           await createTestMutation.mutateAsync({
             ...value,
             scheduledDate: new Date(value.scheduledDate),
+            createdBy: data?._id,
           });
           toast.success("Test created successfully");
         }
         router.push("/admin/tests");
+        router.refresh();
       } catch (error) {
         toast.error(
           mode === "create" ? "Failed to create test" : "Failed to update test",
@@ -216,8 +221,6 @@ export function useCreateTestForm({
       const newQuestions = result.questions.map((q) => ({
         ...q,
         id: crypto.randomUUID(),
-        hints: q.hints || ["", "", ""],
-        microLearning: q.microLearning || "",
       }));
 
       newQuestions.forEach((q) => form.pushFieldValue("questions", q));
@@ -287,9 +290,16 @@ export function useCreateTestForm({
   return {
     form,
     isDrawerOpen,
-    setIsDrawerOpen,
     analysisResult,
     uploadedFiles,
+    isAnalyzing: analyzeDocumentMutation.isPending,
+    isExtracting: extractQuestionsMutation.isPending,
+    isCreating: createTestMutation.isPending,
+    isUpdating: updateTestMutation.isPending,
+    isLoadingTest,
+    isGeneratingHints: generateHintsMutation.isPending,
+    isGeneratingExplanation: generateMicroLearningMutation.isPending,
+    setIsDrawerOpen,
     handleFileUpload,
     handleAnalyzeFiles,
     viewFile,
@@ -300,12 +310,5 @@ export function useCreateTestForm({
     addEmptyQuestion,
     removeQuestion,
     formatFileSize,
-    isAnalyzing: analyzeDocumentMutation.isPending,
-    isExtracting: extractQuestionsMutation.isPending,
-    isCreating: createTestMutation.isPending,
-    isUpdating: updateTestMutation.isPending,
-    isLoadingTest,
-    isGeneratingHints: generateHintsMutation.isPending,
-    isGeneratingExplanation: generateMicroLearningMutation.isPending,
   };
 }

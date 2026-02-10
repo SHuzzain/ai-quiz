@@ -12,20 +12,20 @@ import {
   Plus
 } from 'lucide-react';
 import Link from 'next/link';
-import { useUsers, useAnalytics } from '@/features/admin';
-import { useTests } from '@/features/quiz-creator';
+import { useAnalytics } from '@/features/admin';
+import { useGetTests } from '@/features/quiz-creator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { useCurrentUser } from '@/features/auth/hooks/useCurrentUser';
+import { OverallAnalytics } from '@/types';
 
-export default function AdminDashboard() {
-  const { data: usersData } = useUsers();
-  const { data: tests } = useTests();
-  const { data: analytics } = useAnalytics();
 
-  const stats = [
+const stats = (value: OverallAnalytics) => {
+  const data = [
     {
       title: 'Total Students',
-      value: usersData?.data.filter(u => u.role === 'student').length || 0,
+      state: "totalStudents",
+      value: 0,
       icon: Users,
       change: '+12%',
       color: 'text-kid-blue',
@@ -33,7 +33,8 @@ export default function AdminDashboard() {
     },
     {
       title: 'Active Tests',
-      value: tests?.filter(t => t.status === 'ACTIVE').length || 0,
+      state: "activeTests",
+      value: 0,
       icon: FileText,
       change: '+3',
       color: 'text-kid-purple',
@@ -41,7 +42,8 @@ export default function AdminDashboard() {
     },
     {
       title: 'Avg. Score',
-      value: `${analytics?.averageScore || 0}%`,
+      state: "avgScore",
+      value: 0,
       icon: Trophy,
       change: '+5%',
       color: 'text-kid-green',
@@ -49,13 +51,32 @@ export default function AdminDashboard() {
     },
     {
       title: 'Total Attempts',
-      value: analytics?.totalAttempts || 0,
+      state: "totalAttempts",
+      value: 0,
       icon: TrendingUp,
       change: '+28',
       color: 'text-kid-orange',
       bgColor: 'bg-kid-orange/10',
     },
   ];
+  const stat = data.find((item) => item.state === value.state);
+  return {
+    ...stat,
+    value: value.value,
+  }
+
+};
+
+export default function AdminDashboard() {
+  const { data: usersData } = useCurrentUser();
+  const { data: tests } = useGetTests({
+    userId: usersData?._id,
+    page: 1,
+    limit: 4,
+  });
+  const { data: analytics } = useAnalytics();
+
+  const statsData = analytics?.overallAnalytic.map(stats);
 
   return (
     <div className="space-y-8">
@@ -75,7 +96,7 @@ export default function AdminDashboard() {
 
       {/* Stats Grid */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat, index) => (
+        {statsData?.map((stat, index) => (
           <motion.div
             key={stat.title}
             initial={{ opacity: 0, y: 20 }}
@@ -86,7 +107,7 @@ export default function AdminDashboard() {
               <CardContent className="p-6">
                 <div className="flex items-start justify-between">
                   <div className={`p-2 rounded-lg ${stat.bgColor}`}>
-                    <stat.icon className={`w-5 h-5 ${stat.color}`} />
+                    {stat.icon && <stat.icon className={`w-5 h-5 ${stat.color}`} />}
                   </div>
                   <span className="text-xs text-success font-medium flex items-center gap-0.5">
                     {stat.change}
@@ -115,7 +136,7 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {tests?.slice(0, 4).map((test) => (
+              {tests?.map((test) => (
                 <div
                   key={test.id}
                   className="flex items-center justify-between p-4 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
@@ -150,6 +171,11 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               ))}
+              {tests?.length === 0 && (
+                <div className="text-center text-muted-foreground py-4">
+                  No tests found
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -161,7 +187,7 @@ export default function AdminDashboard() {
               <CardTitle className="text-base">Test Performance</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {analytics?.testAnalytics.slice(0, 3).map((ta) => (
+              {analytics?.testAnalytics.map((ta) => (
                 <div key={ta.testId} className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="truncate">{ta.testTitle}</span>
@@ -175,6 +201,11 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               ))}
+              {analytics?.testAnalytics.length === 0 && (
+                <div className="text-center text-muted-foreground py-4">
+                  No test analytics found
+                </div>
+              )}
             </CardContent>
           </Card>
 

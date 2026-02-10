@@ -1,5 +1,13 @@
-import { User, UserRole, PaginatedResponse, OverallAnalytics } from "@/types";
+import {
+  User,
+  UserRole,
+  PaginatedResponse,
+  OverallAnalytics,
+  DashboardAnalytics,
+} from "@/types";
 import { mockUsers, mockOverallAnalytics } from "@/mocks/data";
+import { API_ROUTES } from "@/config/routes";
+import { apiFetch } from "@/lib/api-client";
 
 // Simulate network delay
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -56,15 +64,19 @@ export async function getUserById(userId: string): Promise<User | null> {
 /**
  * Get overall analytics
  */
-export async function getOverallAnalytics(): Promise<OverallAnalytics> {
-  await delay(MOCK_DELAY);
-  return mockOverallAnalytics;
+export async function getOverallAnalytics() {
+  const data = await apiFetch.get<DashboardAnalytics>(
+    API_ROUTES.ADMIN.ANALYTICS.ROOT,
+  );
+  return data;
 }
 
 /**
  * Get analytics for a specific test
  */
 export async function getTestAnalytics(testId: string) {
-  await delay(MOCK_DELAY);
-  return mockOverallAnalytics.testAnalytics.find((t) => t.testId === testId);
+  const data = await apiFetch.get<OverallAnalytics[]>(
+    API_ROUTES.ADMIN.ANALYTICS.ROOT,
+  );
+  return data;
 }
