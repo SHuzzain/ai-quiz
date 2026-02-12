@@ -1,0 +1,7 @@
+project_id = "fgeamogmqtxwovwaqxwn"
+
+[functions.analyze-document]
+verify_jwt = false
+
+[functions.extract-questions]
+verify_jwt = false
