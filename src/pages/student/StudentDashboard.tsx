@@ -267,7 +267,7 @@ export function StudentDashboard() {
                     <div>
                       <p className="font-semibold">Number Adventure</p>
                       <p className="text-sm text-muted-foreground">
-                        {attempt.correctAnswers}/{attempt.totalQuestions} correct • {attempt.hintsUsed} hints used
+                        {attempt.correctAnswers}/{attempt.totalQuestions} correct
                       </p>
                     </div>
                   </div>

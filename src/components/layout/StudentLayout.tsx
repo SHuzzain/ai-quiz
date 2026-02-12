@@ -6,8 +6,8 @@
 import { ReactNode, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  BookOpen, 
+import {
+  BookOpen,
   Home,
   Trophy,
   Star,
@@ -18,6 +18,14 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface StudentLayoutProps {
   children: ReactNode;
@@ -55,7 +63,7 @@ export function StudentLayout({ children }: StudentLayoutProps) {
           <div className="h-16 flex items-center justify-between">
             {/* Logo */}
             <Link to="/student" className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-2xl flex items-center justify-center" 
+              <div className="w-10 h-10 rounded-2xl flex items-center justify-center"
                 style={{ background: 'var(--gradient-kid)' }}>
                 <Sparkles className="w-5 h-5 text-white" />
               </div>
@@ -86,22 +94,34 @@ export function StudentLayout({ children }: StudentLayoutProps) {
             {/* User & Mobile Menu */}
             <div className="flex items-center gap-3">
               {/* Stars/Points display */}
-              <div className="hidden sm:flex items-center gap-1 px-3 py-1.5 bg-kid-yellow/20 rounded-full">
+              {/* <div className="hidden sm:flex items-center gap-1 px-3 py-1.5 bg-kid-yellow/20 rounded-full">
                 <Star className="w-4 h-4 text-kid-yellow fill-kid-yellow" />
                 <span className="font-bold text-kid-yellow">125</span>
-              </div>
+              </div> */}
 
               {/* User avatar */}
-              <div className="flex items-center gap-2">
-                <img
-                  src={user?.avatarUrl || 'https://api.dicebear.com/7.x/avataaars/svg?seed=student'}
-                  alt={user?.name}
-                  className="w-10 h-10 rounded-full ring-2 ring-kid-purple/30"
-                />
-                <span className="hidden sm:block font-medium text-foreground">
-                  {user?.name?.split(' ')[0] || 'Student'}
-                </span>
-              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger className="outline-none">
+                  <div className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer">
+                    <img
+                      src={user?.avatarUrl || 'https://api.dicebear.com/7.x/avataaars/svg?seed=student'}
+                      alt={user?.name}
+                      className="w-10 h-10 rounded-full ring-2 ring-kid-purple/30"
+                    />
+                    <span className="hidden sm:block font-medium text-foreground">
+                      {user?.name?.split(' ')[0] || 'Student'}
+                    </span>
+                  </div>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => logout()} className="text-red-600 focus:text-red-600 cursor-pointer">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Log out</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
               {/* Mobile menu button */}
               <button
