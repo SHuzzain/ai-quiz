@@ -23,7 +23,9 @@ import { Progress } from "@/components/ui/progress";
 export function AdminTestAttemptDetail() {
     const { attemptId } = useParams<{ attemptId: string }>();
     const navigate = useNavigate();
-    const { data, isLoading } = useAttemptDetails(attemptId || '');
+    const { data, isLoading, error } = useAttemptDetails(attemptId || '');
+
+    console.log({ error })
 
     if (isLoading) {
         return (
@@ -48,6 +50,7 @@ export function AdminTestAttemptDetail() {
     }
 
     const { attempt, questionResults, test } = data;
+
 
     return (
         <AdminLayout>

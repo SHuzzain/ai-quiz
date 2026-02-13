@@ -65,7 +65,7 @@ export function AdminTestsReportPage() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {attempts.map((attempt: any) => (
+                                        {attempts.map((attempt) => (
                                             <TableRow key={attempt.id}>
                                                 <TableCell className="font-medium">
                                                     {attempt.studentName || 'Unknown Student'}
@@ -74,7 +74,7 @@ export function AdminTestsReportPage() {
                                                 <TableCell>
                                                     {attempt.score !== undefined ? (
                                                         <Badge variant={attempt.score >= 80 ? 'default' : attempt.score >= 50 ? 'secondary' : 'destructive'}>
-                                                            {attempt.score}%
+                                                            {attempt.score || 0}%
                                                         </Badge>
                                                     ) : '—'}
                                                 </TableCell>

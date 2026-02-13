@@ -20,6 +20,7 @@ import {
   Course,
   PaginatedResponse,
   OverallAnalytics,
+  TestAnalytics,
   ExtractedQuestion,
   FileUpload,
 } from "@/types";
@@ -752,7 +753,7 @@ export async function getAttemptDetails(attemptId: string) {
 
   if (attemptError || !attempt) return null;
 
-  // 2. Get the test details with questions
+  // 2. Get the test details
   const { data: test, error: testError } = await supabase
     .from("tests")
     .select("*")
@@ -777,6 +778,8 @@ export async function getAttemptDetails(attemptId: string) {
 
   if (qaError) throw qaError;
 
+  console.log({ attempt, questionAttempts });
+
   // Map to types
   const mappedAttempt = {
     id: attempt.id,
@@ -789,7 +792,11 @@ export async function getAttemptDetails(attemptId: string) {
     status: attempt.status,
     totalQuestions: attempt.total_questions,
     correctAnswers: attempt.correct_answers,
-    hintsUsed: attempt.hints_used,
+    hintsUsed:
+      questionAttempts?.reduce(
+        (acc, qa) => acc + (qa.used_no_hints ? qa.generated_hints.length : 0),
+        0,
+      ) || 0,
     timeTakenSeconds: attempt.time_taken_seconds || 0,
     score: attempt.score || 0,
     basicScore: Number(attempt.basic_score) || undefined,
@@ -1799,20 +1806,115 @@ export async function savePerformanceMetrics(
  * Get overall analytics
  */
 export async function getOverallAnalytics(): Promise<OverallAnalytics> {
-  // Mocking this return using real counts where easy
+  // 1. Get counts
   const { count: tests } = await supabase
     .from("tests")
     .select("*", { count: "exact", head: true });
-  const { count: attempts } = await supabase
-    .from("test_attempts")
-    .select("*", { count: "exact", head: true });
+
+  const { count: students } = await supabase
+    .from("user_roles")
+    .select("*", { count: "exact", head: true })
+    .eq("role", "student");
+
+  // 2. Get all attempts for aggregation
+  // Optimization: In a real app, this should be an RPC or a materialized view
+  const { data: attemptsData, error } = await supabase.from("test_attempts")
+    .select(`
+      id,
+      score,
+      time_taken_seconds,
+      hints_used,
+      status,
+      test_id,
+      test:tests(title)
+    `);
+
+  if (error) throw error;
+
+  const attempts = attemptsData || [];
+  const totalAttempts = attempts.length;
+
+  // 3. Calculate Overall Average Score (completed only)
+  const completedAttempts = attempts.filter((a) => a.status === "completed");
+  const totalScore = completedAttempts.reduce(
+    (sum, a) => sum + (a.score || 0),
+    0,
+  );
+  const averageScore =
+    completedAttempts.length > 0
+      ? Math.round(totalScore / completedAttempts.length)
+      : 0;
+
+  // 4. Group by Test for TestAnalytics
+  const contentMap = new Map<string, TestAnalytics>();
+
+  attempts.forEach((attempt) => {
+    const testId = attempt.test_id;
+    // Type assertion for joined relationship
+    const testData = attempt.test as unknown as { title: string } | null;
+    const testTitle = testData?.title || "Unknown Test";
+
+    if (!contentMap.has(testId)) {
+      contentMap.set(testId, {
+        testId,
+        testTitle,
+        totalAttempts: 0,
+        averageScore: 0,
+        averageTime: 0,
+        averageHintsUsed: 0,
+        completionRate: 0,
+      });
+    }
+
+    const metrics = contentMap.get(testId)!;
+    metrics.totalAttempts += 1;
+  });
+
+  // Calculate averages per test
+  const testAnalytics: TestAnalytics[] = Array.from(contentMap.values()).map(
+    (metric) => {
+      const testAttempts = attempts.filter((a) => a.test_id === metric.testId);
+      const completed = testAttempts.filter((a) => a.status === "completed");
+
+      const avgScore =
+        completed.length > 0
+          ? completed.reduce((sum, a) => sum + (a.score || 0), 0) /
+            completed.length
+          : 0;
+
+      const avgTime =
+        completed.length > 0
+          ? completed.reduce((sum, a) => sum + (a.time_taken_seconds || 0), 0) /
+            completed.length
+          : 0;
+
+      const avgHints =
+        completed.length > 0
+          ? completed.reduce((sum, a) => sum + (a.hints_used || 0), 0) /
+            completed.length
+          : 0;
+
+      const completionRate =
+        testAttempts.length > 0
+          ? Math.round((completed.length / testAttempts.length) * 100)
+          : 0;
+
+      return {
+        ...metric,
+        averageScore: Math.round(avgScore),
+        averageTime: Math.round(avgTime),
+        averageHintsUsed: Math.round(avgHints * 10) / 10,
+        completionRate,
+      };
+    },
+  );
 
   return {
     totalTests: tests || 0,
-    totalStudents: 0, // Need count of role=student
-    totalAttempts: attempts || 0,
-    averageScore: 0, // Needs aggregation
-    testAnalytics: [],
+    totalStudents: students || 0,
+    totalAttempts: totalAttempts,
+    averageScore,
+    testAnalytics,
   };
 }
 
@@ -1820,7 +1922,34 @@ export async function getOverallAnalytics(): Promise<OverallAnalytics> {
  * Get analytics for a specific test
  */
 export async function getTestAnalytics(testId: string) {
-  return null; // Implementation pending aggregation logic
+  const { data: attempts, error } = await supabase
+    .from("test_attempts")
+    .select("*")
+    .eq("test_id", testId);
+
+  if (error) throw error;
+
+  const totalAttempts = attempts.length;
+  const completed = attempts.filter((a) => a.status === "completed");
+
+  const avgScore =
+    completed.length > 0
+      ? completed.reduce((sum, a) => sum + (a.score || 0), 0) / completed.length
+      : 0;
+
+  const avgTime =
+    completed.length > 0
+      ? completed.reduce((sum, a) => sum + (a.time_taken_seconds || 0), 0) /
+        completed.length
+      : 0;
+
+  return {
+    testId,
+    totalAttempts,
+    averageScore: Math.round(avgScore),
+    averageTime: Math.round(avgTime),
+    completedCount: completed.length,
+  };
 }
 
 /**

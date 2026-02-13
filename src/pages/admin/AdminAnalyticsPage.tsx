@@ -164,7 +164,7 @@ export function AdminAnalyticsPage() {
             <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
             <p className="text-muted-foreground">Detailed insights into student performance.</p>
           </div>
-          <div className="w-full md:w-64">
+          {/* <div className="w-full md:w-64">
             <Select value={selectedTestId} onValueChange={setSelectedTestId}>
               <SelectTrigger>
                 <SelectValue placeholder="Select Test" />
@@ -178,7 +178,7 @@ export function AdminAnalyticsPage() {
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </div> */}
         </div>
 
         {/* Stats Grid */}

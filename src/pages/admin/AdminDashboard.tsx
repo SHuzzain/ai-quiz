@@ -3,10 +3,10 @@
  */
 
 import { motion } from 'framer-motion';
-import { 
-  Users, 
-  FileText, 
-  Trophy, 
+import {
+  Users,
+  FileText,
+  Trophy,
   TrendingUp,
   Clock,
   Lightbulb,
@@ -54,8 +54,8 @@ export function AdminDashboard() {
       value: analytics?.totalAttempts || 0,
       icon: TrendingUp,
       change: '+28',
-      color: 'text-kid-orange',
-      bgColor: 'bg-kid-orange/10',
+      color: 'text-kid-red',
+      bgColor: 'bg-kid-red/10',
     },
   ];
 
@@ -119,7 +119,7 @@ export function AdminDashboard() {
             <CardContent>
               <div className="space-y-4">
                 {tests?.slice(0, 4).map((test) => (
-                  <div 
+                  <div
                     key={test.id}
                     className="flex items-center justify-between p-4 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
                   >
@@ -135,15 +135,14 @@ export function AdminDashboard() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        test.status === 'active' 
-                          ? 'bg-success/10 text-success' 
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${test.status === 'active'
+                          ? 'bg-success/10 text-success'
                           : test.status === 'scheduled'
-                          ? 'bg-warning/10 text-warning'
-                          : test.status === 'draft'
-                          ? 'bg-muted text-muted-foreground'
-                          : 'bg-muted text-muted-foreground'
-                      }`}>
+                            ? 'bg-warning/10 text-warning'
+                            : test.status === 'draft'
+                              ? 'bg-muted text-muted-foreground'
+                              : 'bg-muted text-muted-foreground'
+                        }`}>
                         {test.status}
                       </span>
                       <Link to={`/admin/tests/${test.id}`}>
@@ -172,7 +171,7 @@ export function AdminDashboard() {
                       <span className="font-medium">{ta.averageScore}%</span>
                     </div>
                     <div className="h-2 bg-muted rounded-full overflow-hidden">
-                      <div 
+                      <div
                         className="h-full rounded-full bg-primary transition-all"
                         style={{ width: `${ta.averageScore}%` }}
                       />
