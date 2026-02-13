@@ -25,8 +25,6 @@ export function AdminTestAttemptDetail() {
     const navigate = useNavigate();
     const { data, isLoading, error } = useAttemptDetails(attemptId || '');
 
-    console.log({ error })
-
     if (isLoading) {
         return (
             <AdminLayout>

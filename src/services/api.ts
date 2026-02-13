@@ -778,8 +778,6 @@ export async function getAttemptDetails(attemptId: string) {
 
   if (qaError) throw qaError;
 
-  console.log({ attempt, questionAttempts });
-
   // Map to types
   const mappedAttempt = {
     id: attempt.id,
