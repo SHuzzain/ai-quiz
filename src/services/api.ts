@@ -792,7 +792,7 @@ export async function getAttemptDetails(attemptId: string) {
     correctAnswers: attempt.correct_answers,
     hintsUsed:
       questionAttempts?.reduce(
-        (acc, qa) => acc + (qa.used_no_hints ? qa.generated_hints.length : 0),
+        (acc, qa) => acc + (qa.generated_hints?.length || 0),
         0,
       ) || 0,
     timeTakenSeconds: attempt.time_taken_seconds || 0,

@@ -340,7 +340,7 @@ export function CreateTestPage() {
 
   return (
     <AdminLayout>
-      <div className="max-w-4xl mx-auto space-y-6 pb-20">
+      <div className="max-w-7xl mx-auto space-y-6 pb-20">
         {/* Header */}
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
