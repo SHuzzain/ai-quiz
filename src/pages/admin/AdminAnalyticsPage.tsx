@@ -204,7 +204,35 @@ export function AdminAnalyticsPage() {
                       <XAxis type="number" dataKey="x" name="Engagement" unit="%" domain={[0, 100]} />
                       <YAxis type="number" dataKey="y" name="Score" unit="%" domain={[0, 100]} />
                       <ZAxis type="number" dataKey="z" range={[50, 400]} name="Attempts" />
-                      <Tooltip cursor={{ strokeDasharray: '3 3' }} />
+                      <Tooltip
+                        cursor={{ strokeDasharray: '3 3' }}
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const data = payload[0].payload;
+                            return (
+                              <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-md text-sm">
+                                <p className="font-semibold">{data.name}</p>
+                                <p className="text-gray-500 text-xs mb-2">{data.test}</p>
+                                <div className="space-y-1 text-xs">
+                                  <div className="flex justify-between gap-3">
+                                    <span className="text-gray-500">Score:</span>
+                                    <span className="font-medium">{data.y}%</span>
+                                  </div>
+                                  <div className="flex justify-between gap-3">
+                                    <span className="text-gray-500">Engagement:</span>
+                                    <span className="font-medium">{data.x}%</span>
+                                  </div>
+                                  <div className="flex justify-between gap-3">
+                                    <span className="text-gray-500">Attempts:</span>
+                                    <span className="font-medium">{data.z}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
                       <Legend />
                       <Scatter name="Students" data={scatteringData} fill="#8884d8">
                         {scatteringData.map((entry, index) => (
