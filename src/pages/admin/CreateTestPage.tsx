@@ -239,6 +239,12 @@ export function CreateTestPage() {
     setIsSaving(true);
     try {
       let targetTestId = testId;
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      const todayString = `${year}-${month}-${day}`;
+      const isToday = scheduledDate === todayString;
 
       if (isEditMode && testId) {
         // UPDATE MODE
@@ -250,7 +256,8 @@ export function CreateTestPage() {
             duration,
             scheduledDate: new Date(scheduledDate),
             lessonId: lessonId || undefined,
-            questionCount: questions.length
+            questionCount: questions.length,
+            ...(isToday ? { status: 'active' } : {})
           }
         });
 
@@ -299,6 +306,7 @@ export function CreateTestPage() {
           duration,
           scheduledDate: new Date(scheduledDate),
           lessonId,
+          status: isToday ? 'active' : 'draft',
         });
         targetTestId = test.id;
 
@@ -542,12 +550,12 @@ export function CreateTestPage() {
                 <div className="p-4 grid md:grid-cols-2 gap-6">
                   {/* Analysis Results */}
                   <div className="space-y-4">
-                    <div className="space-y-1">
+                    {/* <div className="space-y-1">
                       <Label className="text-xs text-muted-foreground">Detected Type</Label>
                       <div className="font-semibold">{analysisResult.type}</div>
-                    </div>
+                    </div> */}
                     <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">Difficulty</Label>
+                      <Label className="text-xs text-muted-foreground mr-2">Difficulty</Label>
                       <Badge variant={
                         analysisResult.difficulty === 'Advanced' ? 'destructive' :
                           analysisResult.difficulty === 'Intermediate' ? 'default' : 'secondary'

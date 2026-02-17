@@ -55,19 +55,6 @@ export function AdminAnalyticsPage() {
   const { data: tests, isLoading: testsLoading } = useTests();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedTestId, setSelectedTestId] = useState<string>('all');
-  const [hasSetDefault, setHasSetDefault] = useState(false);
-
-  // Set default test selection to first test when loaded
-  useEffect(() => {
-    if (tests && tests.length > 0 && !hasSetDefault) {
-      // Default select first test as requested
-      if (tests[0]?.id) {
-        setSelectedTestId(tests[0].id);
-        setHasSetDefault(true);
-      }
-    }
-  }, [tests, hasSetDefault]);
 
   const isLoading = analyticsLoading || metricsLoading || testsLoading;
 
@@ -77,9 +64,7 @@ export function AdminAnalyticsPage() {
       m.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       m.testTitle?.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesTest = selectedTestId === 'all' || m.testId === selectedTestId;
-
-    return matchesSearch && matchesTest;
+    return matchesSearch;
   }) || [];
 
   // Transform data for charts
@@ -164,21 +149,6 @@ export function AdminAnalyticsPage() {
             <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
             <p className="text-muted-foreground">Detailed insights into student performance.</p>
           </div>
-          {/* <div className="w-full md:w-64">
-            <Select value={selectedTestId} onValueChange={setSelectedTestId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select Test" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Tests</SelectItem>
-                {tests?.map((test) => (
-                  <SelectItem key={test.id} value={test.id}>
-                    {test.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div> */}
         </div>
 
         {/* Stats Grid */}
@@ -315,10 +285,7 @@ export function AdminAnalyticsPage() {
                 <div>
                   <CardTitle>Detailed Performance Metrics</CardTitle>
                   <CardDescription>
-                    {selectedTestId === 'all'
-                      ? 'Comprehensive student performance analysis'
-                      : `Performance analysis for ${tests?.find(t => t.id === selectedTestId)?.title || 'Selected Test'}`
-                    }
+                    Comprehensive student performance analysis
                   </CardDescription>
                 </div>
                 <div className="flex gap-2">

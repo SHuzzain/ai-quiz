@@ -309,6 +309,7 @@ export async function createTest(data: {
   scheduledDate: Date;
   duration: number;
   lessonId?: string;
+  status?: Test["status"];
 }): Promise<Test> {
   const {
     data: { user },
@@ -324,7 +325,7 @@ export async function createTest(data: {
       duration: data.duration,
       lesson_id: data.lessonId,
       created_by: user.id,
-      status: "draft",
+      status: data.status || "draft",
       question_count: 0,
     })
     .select()
