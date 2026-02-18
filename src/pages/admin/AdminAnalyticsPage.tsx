@@ -26,7 +26,7 @@ import {
   Filter
 } from 'lucide-react';
 import { AdminLayout } from '@/components/layout';
-import { useAnalytics, usePerformanceMetrics, useTests } from '@/hooks/useApi';
+import { useAnalytics, usePerformanceMetrics, useTests, useAllStudentMetrics } from '@/hooks/useApi';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
@@ -51,21 +51,19 @@ import { useState, useEffect } from 'react';
 
 export function AdminAnalyticsPage() {
   const { data: analytics, isLoading: analyticsLoading } = useAnalytics();
-  const { data: performanceMetrics, isLoading: metricsLoading } = usePerformanceMetrics();
-  const { data: tests, isLoading: testsLoading } = useTests();
 
+  const [page, setPage] = useState(1);
+  const pageSize = 8;
   const [searchTerm, setSearchTerm] = useState('');
 
-  const isLoading = analyticsLoading || metricsLoading || testsLoading;
+  const { data: performanceMetrics, isLoading: metricsLoading } = usePerformanceMetrics(page, pageSize, { search: searchTerm });
+  const { data: allMetrics, isLoading: allMetricsLoading } = useAllStudentMetrics();
+  const { data: tests, isLoading: testsLoading } = useTests();
 
-  // Filter metrics based on selection
-  const filteredMetricsRaw = performanceMetrics?.data.filter(m => {
-    const matchesSearch =
-      m.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      m.testTitle?.toLowerCase().includes(searchTerm.toLowerCase());
+  const isLoading = analyticsLoading || metricsLoading || testsLoading || allMetricsLoading;
 
-    return matchesSearch;
-  }) || [];
+  // Use server-side filtered data
+  const filteredMetricsRaw = performanceMetrics?.data || [];
 
   // Transform data for charts
   const testPerformanceData = analytics?.testAnalytics.map(t => ({
@@ -76,7 +74,7 @@ export function AdminAnalyticsPage() {
   })) || [];
 
   // Scatter Chart Data: Engagement vs Score
-  const scatteringData = filteredMetricsRaw.map(m => ({
+  const scatteringData = (allMetrics || []).map(m => ({
     x: m.averageLearningEngagement || Math.floor(Math.random() * 40) + 60, // Fallback for demo if 0
     y: m.averageBasicScore,
     z: m.totalAttempts,
@@ -344,8 +342,8 @@ export function AdminAnalyticsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredMetricsRaw.length > 0 ? (
-                      filteredMetricsRaw.map((metric) => (
+                    {performanceMetrics?.data && performanceMetrics.data.length > 0 ? (
+                      performanceMetrics.data.map((metric) => (
                         <TableRow key={metric.id}>
                           <TableCell className="font-medium">{metric.studentName}</TableCell>
                           <TableCell>{metric.testTitle}</TableCell>
@@ -368,12 +366,37 @@ export function AdminAnalyticsPage() {
                     ) : (
                       <TableRow>
                         <TableCell colSpan={7} className="h-24 text-center">
-                          No results found for this test configuration.
+                          No results found.
                         </TableCell>
                       </TableRow>
                     )}
                   </TableBody>
                 </Table>
+
+                {/* Pagination Controls */}
+                {performanceMetrics && performanceMetrics.totalPages > 1 && (
+                  <div className="flex items-center justify-end space-x-2 py-4 px-4 border-t">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                    >
+                      Previous
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                      Page {page} of {performanceMetrics.totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((p) => Math.min(performanceMetrics.totalPages, p + 1))}
+                      disabled={page === performanceMetrics.totalPages}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

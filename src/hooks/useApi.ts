@@ -122,6 +122,25 @@ export function useUser(userId: string) {
   });
 }
 
+export function useUpdateUser() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationKey: ["updateUser"],
+    mutationFn: ({
+      userId,
+      updates,
+    }: {
+      userId: string;
+      updates: Partial<User>;
+    }) => api.adminUpdateUser(userId, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.invalidateQueries({ queryKey: ["user"] });
+    },
+  });
+}
+
 // ============================================
 // Test Management Hooks
 // ============================================
@@ -453,16 +472,36 @@ export function useTestAnalytics(testId: string) {
   });
 }
 
-export function useAllTestAttempts(page = 1, pageSize = 20) {
+export function useAllTestAttempts(
+  page = 1,
+  pageSize = 20,
+  filters?: {
+    search?: string;
+    status?: string;
+    minScore?: number;
+    maxScore?: number;
+  },
+) {
   return useQuery({
-    queryKey: ["allTestAttempts", page, pageSize],
-    queryFn: () => api.getAllTestAttempts(page, pageSize),
+    queryKey: ["allTestAttempts", page, pageSize, filters],
+    queryFn: () => api.getAllTestAttempts(page, pageSize, filters),
   });
 }
 
-export function usePerformanceMetrics(page = 1, pageSize = 20) {
+export function usePerformanceMetrics(
+  page = 1,
+  pageSize = 20,
+  filters?: { search?: string; testId?: string },
+) {
   return useQuery({
-    queryKey: ["performanceMetrics", page, pageSize],
-    queryFn: () => api.getPerformanceMetrics(page, pageSize),
+    queryKey: ["performanceMetrics", page, pageSize, filters],
+    queryFn: () => api.getPerformanceMetrics(page, pageSize, filters),
+  });
+}
+
+export function useAllStudentMetrics(testId?: string) {
+  return useQuery({
+    queryKey: ["allStudentMetrics", testId],
+    queryFn: () => api.getAllStudentMetrics(testId),
   });
 }

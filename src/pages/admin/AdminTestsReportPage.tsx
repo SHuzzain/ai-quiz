@@ -21,12 +21,30 @@ import { FileText, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
+import { Input } from '@/components/ui/input';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 
 export function AdminTestsReportPage() {
     const navigate = useNavigate();
     const [page, setPage] = useState(1);
-    const pageSize = 20;
-    const { data, isLoading } = useAllTestAttempts(page, pageSize);
+    const pageSize = 8;
+
+    // Filter states
+    const [search, setSearch] = useState("");
+    const [status, setStatus] = useState<string>("all");
+    const [minScore, setMinScore] = useState<string>(""); // Use string for input handling
+
+    const { data, isLoading } = useAllTestAttempts(page, pageSize, {
+        search: search || undefined,
+        status: status === "all" ? undefined : status,
+        minScore: minScore ? parseInt(minScore) : undefined,
+    });
 
     const attempts = data?.data || [];
     const totalPages = data ? Math.ceil(data.total / pageSize) : 0;
@@ -37,6 +55,49 @@ export function AdminTestsReportPage() {
                 <div>
                     <h1 className="text-3xl font-bold">Test Reports</h1>
                     <p className="text-muted-foreground">Monitor student test performance and history</p>
+                </div>
+
+                {/* Filters */}
+                <div className="flex flex-col sm:flex-row gap-4">
+                    <div className="relative flex-1">
+                        <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Search by student name..."
+                            value={search}
+                            onChange={(e) => {
+                                setSearch(e.target.value);
+                                setPage(1); // Reset page on search
+                            }}
+                            className="pl-10"
+                        />
+                    </div>
+                    <Select value={status} onValueChange={(val) => {
+                        setStatus(val);
+                        setPage(1);
+                    }}>
+                        <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="Filter by Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Statuses</SelectItem>
+                            <SelectItem value="completed">Completed</SelectItem>
+                            <SelectItem value="in-progress">In Progress</SelectItem>
+                            <SelectItem value="started">Started</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <div className="w-[150px]">
+                        <Input
+                            type="number"
+                            placeholder="Min Score"
+                            value={minScore}
+                            onChange={(e) => {
+                                setMinScore(e.target.value);
+                                setPage(1);
+                            }}
+                            min={0}
+                            max={100}
+                        />
+                    </div>
                 </div>
 
                 <Card>

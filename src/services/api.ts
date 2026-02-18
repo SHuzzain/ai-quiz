@@ -2078,20 +2078,60 @@ export async function calculateAndSaveMetrics(
 /**
  * Get all test attempts (Admin)
  */
-export async function getAllTestAttempts(page = 1, pageSize = 20) {
+export async function getAllTestAttempts(
+  page = 1,
+  pageSize = 20,
+  filters?: {
+    search?: string;
+    status?: string;
+    minScore?: number;
+    maxScore?: number;
+  },
+) {
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
-  const { data, count, error } = await supabase
-    .from("test_attempts")
-    .select(
-      `
+  let query = supabase.from("test_attempts").select(
+    `
       *,
-      test:tests(title),
-      student:profiles(name, email)
+      test:tests!inner(title),
+      student:profiles!inner(name, email)
     `,
-      { count: "exact" },
-    )
+    { count: "exact" },
+  );
+
+  if (filters?.status && filters.status !== "all") {
+    query = query.eq("status", filters.status);
+  }
+
+  if (filters?.minScore !== undefined) {
+    query = query.gte("score", filters.minScore);
+  }
+
+  if (filters?.maxScore !== undefined) {
+    query = query.lte("score", filters.maxScore);
+  }
+
+  if (filters?.search) {
+    // Filter by student name or test title
+    // Note: Cross-table OR filters are tricky in Supabase/PostgREST.
+    // We might need to rely on a view or separate queries if this gets complex.
+    // For now, let's filter by student name directly if possible via the join?
+    // Actually, simple OR across joined tables isn't directly supported in one string.
+    // workaround: use !inner and filter on the joined columns?
+    // OR condition on joined columns:
+    // query = query.or(`name.ilike.%${filters.search}%,title.ilike.%${filters.search}%`, { foreignTable: "student,test" });
+    // This is getting complicated.
+    // Let's simplified: Filter by student Name OR Test Title
+    // But since they are in different tables...
+    // Let's try textSearch if available or just filter on student name for now as "Name" was requested.
+    query.or(`name.ilike.%${filters.search}%,email.ilike.%${filters.search}%`, {
+      foreignTable: "student",
+    });
+  }
+
+  // Order and paginate
+  const { data, count, error } = await query
     .order("started_at", { ascending: false })
     .range(from, to);
 
@@ -2114,26 +2154,95 @@ export async function getAllTestAttempts(page = 1, pageSize = 20) {
     total: count || 0,
     page,
     pageSize,
+    totalPages: Math.ceil((count || 0) / pageSize),
   };
+}
+
+/**
+ * Update ANY user (Admin function)
+ */
+export async function adminUpdateUser(
+  userId: string,
+  updates: Partial<User>,
+): Promise<User> {
+  // 1. Update Profile
+  const { error: profileError } = await supabase
+    .from("profiles")
+    .update({
+      name: updates.name,
+      grade: updates.grade,
+      avatar_url: updates.avatarUrl,
+      // email: updates.email // Email update in profiles for display only if needed
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", userId);
+
+  if (profileError) throw profileError;
+
+  // 2. Update Role if provided
+  if (updates.role) {
+    // Check if user_role entry exists
+    const { data: existingRole } = await supabase
+      .from("user_roles")
+      .select("*")
+      .eq("user_id", userId)
+      .single();
+
+    if (existingRole) {
+      const { error: roleError } = await supabase
+        .from("user_roles")
+        .update({ role: updates.role })
+        .eq("user_id", userId);
+      if (roleError) throw roleError;
+    } else {
+      const { error: roleError } = await supabase
+        .from("user_roles")
+        .insert({ user_id: userId, role: updates.role });
+      if (roleError) throw roleError;
+    }
+  }
+
+  // 3. Return updated user
+  const updatedUser = await getUserById(userId);
+  if (!updatedUser) throw new Error("User not found after update");
+
+  return updatedUser;
 }
 
 /**
  * Get all performance metrics (Admin)
  */
-export async function getPerformanceMetrics(page = 1, pageSize = 20) {
+export async function getPerformanceMetrics(
+  page = 1,
+  pageSize = 20,
+  filters?: { search?: string; testId?: string },
+) {
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
-  const { data, count, error } = await supabase
-    .from("performance_metrics")
-    .select(
-      `
+  let query = supabase.from("performance_metrics").select(
+    `
       *,
-      test:tests(title),
-      student:profiles(name, email)
+      test:tests!inner(title),
+      student:profiles!inner(name, email)
     `,
-      { count: "exact" },
-    )
+    { count: "exact" },
+  );
+
+  if (filters?.testId && filters.testId !== "all") {
+    query = query.eq("test_id", filters.testId);
+  }
+
+  if (filters?.search) {
+    query = query.or(
+      `name.ilike.%${filters.search}%,email.ilike.%${filters.search}%`,
+      {
+        foreignTable: "student",
+      },
+    );
+  }
+
+  const { data, count, error } = await query
     .order("calculated_at", { ascending: false })
     .range(from, to);
 
@@ -2168,6 +2277,55 @@ export async function getPerformanceMetrics(page = 1, pageSize = 20) {
     })),
     total: count || 0,
     page,
-    pageSize,
+    totalPages: Math.ceil((count || 0) / pageSize),
   };
+}
+
+/**
+ * Get all student metrics for charts (Unpaginated, lightweight)
+ */
+export async function getAllStudentMetrics(testId?: string) {
+  let query = supabase.from("performance_metrics").select(
+    `
+      student_id,
+      average_basic_score,
+      average_learning_engagement,
+      total_attempts,
+      student:profiles!inner(name),
+      test:tests!inner(title)
+    `,
+  );
+
+  if (testId && testId !== "all") {
+    query = query.eq("test_id", testId);
+  }
+
+  const { data, error } = await query.order("calculated_at", {
+    ascending: false,
+  });
+
+  if (error) throw error;
+
+  // Type definition for the joined query result
+  type MetricRow = Pick<
+    Tables<"performance_metrics">,
+    | "student_id"
+    | "average_basic_score"
+    | "average_learning_engagement"
+    | "total_attempts"
+  > & {
+    test: { title: string } | null;
+    student: { name: string } | null;
+  };
+
+  const metrics = data as unknown as MetricRow[];
+
+  return metrics.map((m) => ({
+    studentId: m.student_id,
+    averageBasicScore: Number(m.average_basic_score) || 0,
+    averageLearningEngagement: Number(m.average_learning_engagement) || 0,
+    totalAttempts: m.total_attempts || 0,
+    studentName: m.student?.name || "Unknown",
+    testTitle: m.test?.title || "Unknown",
+  }));
 }
