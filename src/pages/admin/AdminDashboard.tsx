@@ -20,7 +20,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
 export function AdminDashboard() {
-  const { data: usersData } = useUsers();
+  const { data: usersData } = useUsers({
+    role: "student"
+  });
+
+  console.log({ usersData })
   const { data: tests } = useTests();
   const { data: analytics } = useAnalytics();
 
@@ -136,12 +140,12 @@ export function AdminDashboard() {
                     </div>
                     <div className="flex items-center gap-3">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${test.status === 'active'
-                          ? 'bg-success/10 text-success'
-                          : test.status === 'scheduled'
-                            ? 'bg-warning/10 text-warning'
-                            : test.status === 'draft'
-                              ? 'bg-muted text-muted-foreground'
-                              : 'bg-muted text-muted-foreground'
+                        ? 'bg-success/10 text-success'
+                        : test.status === 'scheduled'
+                          ? 'bg-warning/10 text-warning'
+                          : test.status === 'draft'
+                            ? 'bg-muted text-muted-foreground'
+                            : 'bg-muted text-muted-foreground'
                         }`}>
                         {test.status}
                       </span>

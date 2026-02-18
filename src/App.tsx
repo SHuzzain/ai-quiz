@@ -22,6 +22,7 @@ import { StudentTestsPage } from "@/pages/student/StudentTestsPage";
 import { StudentResultsListPage } from "@/pages/student/StudentResultsListPage";
 import { TestTakingPage } from "@/pages/student/TestTakingPage";
 import { TestResultsPage } from "@/pages/student/TestResultsPage";
+import { ProfilePage } from "@/pages/shared/ProfilePage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -49,6 +50,8 @@ const App = () => (
             <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
             <Route path="/admin/reports" element={<AdminTestsReportPage />} />
             <Route path="/admin/reports/:attemptId" element={<AdminTestAttemptDetail />} />
+            <Route path="/admin/profile" element={<ProfilePage />} />
+
 
             {/* Student Routes */}
             <Route path="/student" element={<StudentDashboard />} />
@@ -56,6 +59,8 @@ const App = () => (
             <Route path="/student/results" element={<StudentResultsListPage />} />
             <Route path="/student/test/:testId" element={<TestTakingPage />} />
             <Route path="/student/results/:attemptId" element={<TestResultsPage />} />
+            <Route path="/student/profile" element={<ProfilePage />} />
+
 
             {/* Catch-all */}
             <Route path="*" element={<NotFound />} />

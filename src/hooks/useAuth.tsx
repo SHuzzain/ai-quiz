@@ -12,6 +12,7 @@ import { useQueryClient } from '@tanstack/react-query';
 interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, name: string, role: UserRole) => Promise<void>;
+  updateProfile: (data: { name?: string; avatarUrl?: string }) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -119,6 +120,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const updateProfile = async (data: { name?: string; avatarUrl?: string }) => {
+    if (!user) return;
+
+    // Optimistic update
+    setUser(prev => prev ? ({ ...prev, ...data }) : null);
+
+    try {
+      const { updateUser } = await import('@/services/api');
+      const updatedUser = await updateUser(user.id, data);
+      setUser(updatedUser);
+    } catch (error) {
+      // Revert on error - re-fetch profile
+      const profile = await fetchUserProfile(user.id);
+      setUser(profile);
+      throw error;
+    }
+  };
+
   const logout = async () => {
     await supabase.auth.signOut();
     setUser(null);
@@ -132,6 +151,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isLoading,
     login,
     signUp,
+    updateProfile,
     logout,
   };
 

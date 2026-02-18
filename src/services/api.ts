@@ -217,6 +217,54 @@ export async function getUserById(userId: string): Promise<User | null> {
   };
 }
 
+/**
+ * Update user profile
+ */
+export async function updateUser(
+  userId: string,
+  data: { name?: string; avatarUrl?: string },
+): Promise<User> {
+  const updates: TablesUpdate<"profiles"> = {};
+  if (data.name) updates.name = data.name;
+  if (data.avatarUrl) updates.avatar_url = data.avatarUrl;
+
+  const { data: updatedProfile, error } = await supabase
+    .from("profiles")
+    .update(updates)
+    .eq("user_id", userId)
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  return getUserById(userId) as Promise<User>;
+}
+
+/**
+ * Upload avatar image
+ */
+export async function uploadAvatar(file: File): Promise<string> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  // Create a unique file name
+  const fileExt = file.name.split(".").pop();
+  const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+  const filePath = `${fileName}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("avatars")
+    .upload(filePath, file, { upsert: true });
+
+  if (uploadError) throw uploadError;
+
+  const { data } = supabase.storage.from("avatars").getPublicUrl(filePath);
+
+  return data.publicUrl;
+}
+
 // ============================================
 // Test Management Services
 // ============================================

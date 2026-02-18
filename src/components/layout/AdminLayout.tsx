@@ -106,7 +106,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
           {/* User section */}
           <div className="p-4 border-t border-sidebar-border">
-            <div className="flex items-center gap-3 mb-4">
+            <Link to="/admin/profile" className="flex items-center gap-3 mb-4 hover:bg-sidebar-accent p-2 rounded-lg transition-colors">
               <img
                 src={user?.avatarUrl || 'https://api.dicebear.com/7.x/avataaars/svg?seed=admin'}
                 alt={user?.name}
@@ -120,7 +120,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                   {user?.email || 'admin@example.com'}
                 </p>
               </div>
-            </div>
+            </Link>
             <button
               onClick={() => logout()}
               className="w-full flex items-center gap-2 px-3 py-2 text-sm text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-lg transition-colors"
