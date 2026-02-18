@@ -30,9 +30,10 @@ serve(async (req) => {
     Explain this concept to a child.`;
 
     const { text } = await generateText({
-      model: openai("gpt-4o-mini"),
+      model: openai("gpt-4.1"),
       system: systemPrompt,
       prompt: prompt,
+      temperature: 0.5,
     });
 
     return new Response(JSON.stringify({ content: text }), {

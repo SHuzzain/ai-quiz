@@ -44,9 +44,10 @@ serve(async (req) => {
     Grade this answer.`;
 
     const { text } = await generateText({
-      model: openai("gpt-4o-mini"),
+      model: openai("gpt-5"),
       system: systemPrompt,
       prompt: prompt,
+      temperature: 0.2,
     });
 
     // Parse JSON safely

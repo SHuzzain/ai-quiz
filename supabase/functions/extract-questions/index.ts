@@ -44,10 +44,11 @@ serve(async (req) => {
     const prompt = `Generate ${count} questions based on this content:\n\n${content.substring(0, 10000)}\n\nTopics: ${topics?.join(", ") || "General"}`;
 
     const { output } = await generateText({
-      model: openai("gpt-4o-mini"),
+      model: openai("gpt-4.1"),
       system: SYSTEM_PROMPT,
       prompt: prompt,
       output: Output.object({ schema: ResponseSchema }),
+      temperature: 0.5,
     });
 
     return new Response(JSON.stringify(output), {

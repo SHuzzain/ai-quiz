@@ -42,10 +42,11 @@ serve(async (req) => {
     }
 
     const { output } = await generateText({
-      model: openai("gpt-4o-mini"),
+      model: openai("gpt-4.1"),
       system: SYSTEM_PROMPT,
       prompt: prompt,
       output: Output.object({ schema: ResponseSchema }),
+      temperature: 0.3,
     });
 
     return new Response(JSON.stringify(output), {
