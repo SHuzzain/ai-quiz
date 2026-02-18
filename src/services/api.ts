@@ -136,11 +136,15 @@ export async function getUsers(filters?: {
 }): Promise<PaginatedResponse<User>> {
   let query = supabase
     .from("profiles")
-    .select("*, user_roles(role)", { count: "exact" });
+    .select(
+      filters?.role ? "*, user_roles!inner(role)" : "*, user_roles(role)",
+      { count: "exact" },
+    );
 
-  // Note: Filtering by role requires joining user_roles which is complex in simple queries
-  // For now we'll fetch profiles and their roles.
-  // Ideally, create a view 'users_with_roles' in Supabase for easier filtering.
+  // Filter by role if provided
+  if (filters?.role) {
+    query = query.eq("user_roles.role", filters.role);
+  }
 
   if (filters?.search) {
     query = query.or(
@@ -161,26 +165,21 @@ export async function getUsers(filters?: {
 
   // Type assertion needed because of the joined user_roles
   const profiles = data as unknown as (Tables<"profiles"> & {
-    user_roles: { role: string } | null;
+    user_roles: { role: UserRole }[] | null;
   })[];
 
   const users: User[] = profiles.map((profile) => ({
     id: profile.user_id,
     email: profile.email,
     name: profile.name,
-    role: (profile.user_roles?.role as UserRole) || "student",
+    role: profile.user_roles?.[0].role || "student",
     avatarUrl: profile.avatar_url || undefined,
     createdAt: new Date(profile.created_at),
     lastActiveAt: new Date(profile.last_active_at),
   }));
 
-  // Client-side role filter if needed (or prefer server-side view)
-  const finalUsers = filters?.role
-    ? users.filter((u) => u.role === filters.role)
-    : users;
-
   return {
-    data: finalUsers,
+    data: users,
     total: count || 0,
     page,
     pageSize,
