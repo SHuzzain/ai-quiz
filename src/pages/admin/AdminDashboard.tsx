@@ -116,7 +116,7 @@ export function AdminDashboard() {
           <Card className="lg:col-span-2">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Recent Tests</CardTitle>
-              <Link to="/admin/tests" className="text-sm text-primary hover:underline">
+              <Link to="/admin/tests" className="text-sm text-gray-800 hover:underline hover:text-primary">
                 View all
               </Link>
             </CardHeader>
@@ -176,7 +176,7 @@ export function AdminDashboard() {
                     </div>
                     <div className="h-2 bg-muted rounded-full overflow-hidden">
                       <div
-                        className="h-full rounded-full bg-primary transition-all"
+                        className="h-full rounded-full bg-primarySoft transition-all"
                         style={{ width: `${ta.averageScore}%` }}
                       />
                     </div>

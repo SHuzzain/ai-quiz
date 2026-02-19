@@ -139,10 +139,10 @@ export function AdminLessonsPage() {
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2">
-                      <FileText className="w-5 h-5 text-primary" />
+                      <FileText className="w-5 h-5 text-sky-600" />
                       <CardTitle className="text-base">{lesson.title}</CardTitle>
                     </div>
-                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => handleDelete(lesson.id)}>
+                    <Button variant="ghost" size="icon" className="text-destructive/90" onClick={() => handleDelete(lesson.id)}>
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>

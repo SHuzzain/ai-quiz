@@ -20,9 +20,13 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    /* Primary: Vibrant Teal - trustworthy, calm, learning-focused */
-    --primary: 174 84% 40%;
+    /* Primary: Vibrant Red - #dd3333 */
+    --primary: 0 72% 53%;
     --primary-foreground: 0 0% 100%;
+
+    /* Primary soft */
+    --primary-soft: 174 84% 40%;
+    --primary-soft-foreground: 174 20% 20%;
 
     /* Secondary: Soft lavender */
     --secondary: 250 60% 96%;
@@ -64,10 +68,27 @@
     --radius: 0.75rem;
 
     /* Gradients */
-    --gradient-hero: linear-gradient(135deg, hsl(174 84% 40%) 0%, hsl(200 80% 50%) 100%);
-    --gradient-kid: linear-gradient(135deg, hsl(270 70% 60%) 0%, hsl(330 80% 65%) 50%, hsl(24 95% 60%) 100%);
-    --gradient-success: linear-gradient(135deg, hsl(152 76% 42%) 0%, hsl(174 84% 40%) 100%);
-    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%) 0%, hsl(210 40% 98%) 100%);
+    --gradient-hero: linear-gradient(
+      135deg,
+      hsl(174 84% 40%) 0%,
+      hsl(200 80% 50%) 100%
+    );
+    --gradient-kid: linear-gradient(
+      135deg,
+      hsl(270 70% 60%) 0%,
+      hsl(330 80% 65%) 50%,
+      hsl(24 95% 60%) 100%
+    );
+    --gradient-success: linear-gradient(
+      135deg,
+      hsl(152 76% 42%) 0%,
+      hsl(174 84% 40%) 100%
+    );
+    --gradient-card: linear-gradient(
+      145deg,
+      hsl(0 0% 100%) 0%,
+      hsl(210 40% 98%) 100%
+    );
 
     /* Shadows */
     --shadow-soft: 0 4px 20px -2px hsl(222 47% 11% / 0.08);
@@ -77,12 +98,12 @@
     /* Admin sidebar */
     --sidebar-background: 222 47% 11%;
     --sidebar-foreground: 210 40% 96%;
-    --sidebar-primary: 174 84% 50%;
+    --sidebar-primary: 0 72% 53%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 222 47% 20%;
     --sidebar-accent-foreground: 210 40% 96%;
     --sidebar-border: 222 47% 18%;
-    --sidebar-ring: 174 84% 50%;
+    --sidebar-ring: 0 72% 53%;
   }
 
   .dark {
@@ -95,8 +116,8 @@
     --popover: 222 47% 9%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 174 84% 50%;
-    --primary-foreground: 222 47% 11%;
+    --primary: 0 72% 53%;
+    --primary-foreground: 0 0% 100%;
 
     --secondary: 222 47% 15%;
     --secondary-foreground: 210 40% 98%;
@@ -138,7 +159,9 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
   }
 
   /* Kid-friendly text sizes */
@@ -262,9 +285,16 @@
 
   /* Celebration animation */
   @keyframes celebrate {
-    0%, 100% { transform: scale(1) rotate(0deg); }
-    25% { transform: scale(1.1) rotate(-5deg); }
-    75% { transform: scale(1.1) rotate(5deg); }
+    0%,
+    100% {
+      transform: scale(1) rotate(0deg);
+    }
+    25% {
+      transform: scale(1.1) rotate(-5deg);
+    }
+    75% {
+      transform: scale(1.1) rotate(5deg);
+    }
   }
 
   .animate-celebrate {
@@ -273,10 +303,20 @@
 
   /* Bounce in */
   @keyframes bounceIn {
-    0% { transform: scale(0.3); opacity: 0; }
-    50% { transform: scale(1.05); }
-    70% { transform: scale(0.9); }
-    100% { transform: scale(1); opacity: 1; }
+    0% {
+      transform: scale(0.3);
+      opacity: 0;
+    }
+    50% {
+      transform: scale(1.05);
+    }
+    70% {
+      transform: scale(0.9);
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
   }
 
   .animate-bounce-in {
@@ -285,9 +325,23 @@
 
   /* Shake for wrong answer */
   @keyframes shake {
-    0%, 100% { transform: translateX(0); }
-    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
-    20%, 40%, 60%, 80% { transform: translateX(5px); }
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+    10%,
+    30%,
+    50%,
+    70%,
+    90% {
+      transform: translateX(-5px);
+    }
+    20%,
+    40%,
+    60%,
+    80% {
+      transform: translateX(5px);
+    }
   }
 
   .animate-shake {
@@ -296,8 +350,13 @@
 
   /* Floating animation for decorative elements */
   @keyframes float {
-    0%, 100% { transform: translateY(0) rotate(0deg); }
-    50% { transform: translateY(-20px) rotate(5deg); }
+    0%,
+    100% {
+      transform: translateY(0) rotate(0deg);
+    }
+    50% {
+      transform: translateY(-20px) rotate(5deg);
+    }
   }
 
   .animate-float {

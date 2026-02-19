@@ -68,12 +68,13 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       >
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="h-16 flex items-center justify-between px-6 border-b border-sidebar-border">
-            <Link to="/admin" className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-sidebar-primary flex items-center justify-center">
-                <BookOpen className="w-4 h-4 text-sidebar-primary-foreground" />
-              </div>
-              <span className="font-bold text-sidebar-foreground">LearnQuest</span>
+          <div className="h-16 flex items-center justify-between lg:justify-center px-6 border-b border-sidebar-border">
+            <Link to="/admin" className="flex items-center gap-2 justify-center">
+              <img
+                src="https://mindchamps-prod-wp.s3.ap-southeast-1.amazonaws.com/wp-content/uploads/2020/02/04104502/logo-white.png"
+                alt="LearnQuest"
+                className="h-8 w-auto"
+              />
             </Link>
             <button
               onClick={() => setSidebarOpen(false)}

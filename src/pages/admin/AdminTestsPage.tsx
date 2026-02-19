@@ -5,11 +5,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { 
-  Plus, 
-  Search, 
-  FileText, 
-  Clock, 
+import {
+  Plus,
+  Search,
+  FileText,
+  Clock,
   Users,
   MoreVertical,
   Edit,
@@ -38,7 +38,7 @@ import { Test } from '@/types';
 export function AdminTestsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  
+
   const { data: tests, isLoading } = useTests({
     status: statusFilter !== 'all' ? statusFilter as Test['status'] : undefined,
     search: search || undefined,
@@ -143,7 +143,7 @@ export function AdminTestsPage() {
                           Edit
                         </Link>
                       </DropdownMenuItem>
-                      <DropdownMenuItem 
+                      <DropdownMenuItem
                         onClick={() => handleDelete(test.id)}
                         className="text-destructive"
                       >
