@@ -63,14 +63,12 @@ export function StudentLayout({ children }: StudentLayoutProps) {
         <div className="container mx-auto px-4">
           <div className="h-16 flex items-center justify-between">
             {/* Logo */}
-            <Link to="/student" className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-2xl flex items-center justify-center"
-                style={{ background: 'var(--gradient-kid)' }}>
-                <Sparkles className="w-5 h-5 text-white" />
-              </div>
-              <span className="font-bold text-xl bg-gradient-to-r from-kid-purple to-kid-pink bg-clip-text text-transparent">
-                LearnQuest
-              </span>
+            <Link to="/" className="flex items-center gap-2">
+              <img
+                src="https://mindchamps-prod-wp.s3.ap-southeast-1.amazonaws.com/wp-content/uploads/2020/02/04104625/logo-color.png"
+                alt="LearnQuest"
+                className="h-10 w-auto"
+              />
             </Link>
 
             {/* Desktop Navigation */}
