@@ -257,3 +257,21 @@ export interface ExtractedQuestionsResult {
   rawText: string;
   confidence: number;
 }
+
+// ============================================
+// Question Bank Types
+// ============================================
+
+export interface QuestionBankItem {
+  id: string;
+  topic: string;
+  concept: string;
+  title: string;
+  difficulty: number;
+  marks: number;
+  answer: string;
+  lessonId?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  createdBy?: string;
+}
