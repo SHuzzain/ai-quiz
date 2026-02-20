@@ -987,6 +987,13 @@ export async function startTestAttempt(
   };
 }
 
+interface AttemptHistoryItem {
+  answer: string;
+  isCorrect: boolean;
+  aiScore?: number;
+  feedback?: string;
+  timestamp: string;
+}
 /**
  * Submit answer for a question
  */
@@ -1066,14 +1073,6 @@ export async function submitAnswer(data: {
     .eq("attempt_id", data.attemptId)
     .eq("question_id", data.questionId)
     .maybeSingle();
-
-  interface AttemptHistoryItem {
-    answer: string;
-    isCorrect: boolean;
-    aiScore?: number;
-    feedback?: string;
-    timestamp: string;
-  }
 
   let history: Json[] = [];
   if (
@@ -1336,7 +1335,7 @@ export async function completeAttempt(
 
   const { data: testData, error: testError } = await supabase
     .from("tests")
-    .select("question_count")
+    .select("question_count, duration")
     .eq("id", attemptData.test_id)
     .single();
 
@@ -1350,20 +1349,85 @@ export async function completeAttempt(
 
   if (countError) throw countError;
 
-  const correctCount = qAttempts.filter((qa) => qa.is_correct).length;
-
-  // Robust Aggregation & Advanced Scoring
+  // We are redefining correctness and score based on Option A (Average of all attempts)
   let totalWeightedScore = 0;
+  let correctCount = 0;
+
+  // Track the breakdown of the score calculation for clarity
+  interface ScoreBreakdown {
+    questions: Array<{
+      questionId: string;
+      rawScore: number;
+      penalties: {
+        hints: number;
+        microLearning: number;
+        studyMaterial: number;
+        totalPenalty: number;
+      };
+      finalQuestionScore: number;
+      isConsideredCorrect: boolean;
+    }>;
+    timePenalty: number;
+    finalScore: number;
+  }
+
+  const aiScoreBreakdown: ScoreBreakdown = {
+    questions: [],
+    timePenalty: 0,
+    finalScore: 0,
+  };
+
   const totalQuestions = testData.question_count || 0;
   const safeTotal = totalQuestions > 0 ? totalQuestions : 1;
 
   const totalHintsUsed = qAttempts.reduce((sum, qa) => {
-    // Scoring Logic per Question
+    // Scoring Logic per Question: Average of all attempts (Option A)
     let qScore = 0;
-    if (qa.is_correct) {
-      qScore = 100;
-    } else if (qa.ai_score) {
-      qScore = Number(qa.ai_score);
+    let isQuestionCorrect = false;
+
+    if (
+      qa.attempt_history &&
+      Array.isArray(qa.attempt_history) &&
+      qa.attempt_history.length > 0
+    ) {
+      // Calculate average aiScore across all attempts
+      let totalAiScore = 0;
+      let validAttemptCount = 0;
+
+      for (const attempt of qa.attempt_history) {
+        if (
+          typeof attempt === "object" &&
+          attempt !== null &&
+          "aiScore" in attempt &&
+          typeof attempt.aiScore === "number"
+        ) {
+          totalAiScore += attempt.aiScore;
+          validAttemptCount++;
+        }
+      }
+
+      if (validAttemptCount > 0) {
+        qScore = Math.round(totalAiScore / validAttemptCount);
+      } else {
+        // Fallback if history doesn't contain aiScore
+        qScore = qa.is_correct ? qa.ai_score || 100 : qa.ai_score || 0;
+      }
+
+      // Determine overall correctness (e.g., average >= 60 is considered correct for the test tally)
+      isQuestionCorrect = qScore >= 60;
+    } else {
+      // Fallback for old attempts without history
+      if (qa.is_correct) {
+        qScore = qa?.ai_score || 100;
+        isQuestionCorrect = true;
+      } else if (qa.ai_score) {
+        qScore = Number(qa.ai_score);
+        isQuestionCorrect = qScore >= 60;
+      }
+    }
+
+    if (isQuestionCorrect) {
+      correctCount++;
     }
 
     // Penalties
@@ -1379,22 +1443,29 @@ export async function completeAttempt(
     }
 
     // 3. Study Material Download Penalty (-20 if downloaded)
-    // Note: 'study_material_downloaded' needs to be added to QuestionAttempt type if not present,
-    // or accessed as 'any' if type is not updated yet.
-    // Assuming backend returns it in select *
     if (qa.study_material_downloaded) {
       penalty += 20;
     }
 
-    qScore = Math.max(0, qScore - penalty); // Floor at 0
+    const postPenaltyScore = Math.max(0, qScore - penalty); // Floor at 0
 
-    totalWeightedScore += qScore;
+    // Add to breakdown
+    aiScoreBreakdown.questions.push({
+      questionId: qa.question_id,
+      rawScore: qScore,
+      penalties: {
+        hints: hints * 10,
+        microLearning: qa.micro_learning_viewed ? 20 : 0,
+        studyMaterial: qa.study_material_downloaded ? 20 : 0,
+        totalPenalty: penalty,
+      },
+      finalQuestionScore: postPenaltyScore,
+      isConsideredCorrect: isQuestionCorrect,
+    });
+
+    totalWeightedScore += postPenaltyScore;
     return sum + hints;
   }, 0);
-
-  const microLearningCount = qAttempts.filter(
-    (qa) => qa.micro_learning_viewed,
-  ).length;
 
   // Calculate Learning Engagement Rate (Questions with hints OR micro-learning / Total Answered)
   const engagedQuestionsCount = qAttempts.filter(
@@ -1425,10 +1496,36 @@ export async function completeAttempt(
       : 0;
 
   // 3. Hint Dependency Rate (Of the correct answers, how many needed hints?)
-  const correctWithHintsCount = qAttempts.filter(
-    (qa) => qa.is_correct && (qa.hints_used || 0) > 0,
-  ).length;
-  const correctTotal = qAttempts.filter((qa) => qa.is_correct).length;
+  // We use our newly calculated average score for "is_correct" equivalence (qScore >= 60)
+  const correctWithHintsCount = qAttempts.filter((qa) => {
+    let qScore = 0;
+    if (
+      qa.attempt_history &&
+      Array.isArray(qa.attempt_history) &&
+      qa.attempt_history.length > 0
+    ) {
+      let totalAiScore = 0;
+      let validAttemptCount = 0;
+      for (const attempt of qa.attempt_history) {
+        if (
+          typeof attempt === "object" &&
+          attempt !== null &&
+          "aiScore" in attempt &&
+          typeof attempt.aiScore === "number"
+        ) {
+          totalAiScore += attempt.aiScore;
+          validAttemptCount++;
+        }
+      }
+      if (validAttemptCount > 0)
+        qScore = Math.round(totalAiScore / validAttemptCount);
+      else qScore = qa.is_correct ? qa.ai_score || 100 : qa.ai_score || 0;
+    } else {
+      qScore = qa.is_correct ? qa.ai_score || 100 : qa.ai_score || 0;
+    }
+    return qScore >= 60 && (qa.hints_used || 0) > 0;
+  }).length;
+  const correctTotal = correctCount; // Using the recalculated correct count
   const hintDependencyRate =
     correctTotal > 0
       ? Math.round((correctWithHintsCount / correctTotal) * 100)
@@ -1438,9 +1535,36 @@ export async function completeAttempt(
   const multiAttemptQuestions = qAttempts.filter(
     (qa) => (qa.attempts_count || 1) > 1,
   );
-  const persistedCorrectCount = multiAttemptQuestions.filter(
-    (qa) => qa.is_correct,
-  ).length;
+
+  const persistedCorrectCount = multiAttemptQuestions.filter((qa) => {
+    let qScore = 0;
+    if (
+      qa.attempt_history &&
+      Array.isArray(qa.attempt_history) &&
+      qa.attempt_history.length > 0
+    ) {
+      let totalAiScore = 0;
+      let validAttemptCount = 0;
+      for (const attempt of qa.attempt_history) {
+        if (
+          typeof attempt === "object" &&
+          attempt !== null &&
+          "aiScore" in attempt &&
+          typeof attempt.aiScore === "number"
+        ) {
+          totalAiScore += attempt.aiScore;
+          validAttemptCount++;
+        }
+      }
+      if (validAttemptCount > 0)
+        qScore = Math.round(totalAiScore / validAttemptCount);
+      else qScore = qa.is_correct ? qa.ai_score || 100 : qa.ai_score || 0;
+    } else {
+      qScore = qa.is_correct ? qa.ai_score || 100 : qa.ai_score || 0;
+    }
+    return qScore >= 60;
+  }).length;
+
   const persistenceScore =
     multiAttemptQuestions.length > 0
       ? Math.round((persistedCorrectCount / multiAttemptQuestions.length) * 100)
@@ -1449,7 +1573,29 @@ export async function completeAttempt(
   // 3. Calculate Authoritative Score
   // Average of all question scores
   // If fewer questions answered than total, those count as 0.
-  const finalScore = Math.round(totalWeightedScore / safeTotal);
+  let finalScore = Math.round(totalWeightedScore / safeTotal);
+
+  // --- Time Penalty Logic ---
+  const testDurationMinutes = testData.duration || 0;
+  let appliedTimePenalty = 0;
+  if (testDurationMinutes > 0) {
+    const timeTakenMinutes = totalTime / 60;
+    const extraMinutes = Math.floor(timeTakenMinutes - testDurationMinutes);
+    if (extraMinutes > 0) {
+      // 1 point per extra minute
+      let timePenalty = extraMinutes * 1;
+      // Extra 10 points penalty if more than 5 minutes over time
+      if (extraMinutes > 5) {
+        timePenalty += 10;
+      }
+      appliedTimePenalty = timePenalty;
+      finalScore = Math.max(0, finalScore - timePenalty);
+    }
+  }
+
+  // Update breakdown with final totals
+  aiScoreBreakdown.timePenalty = appliedTimePenalty;
+  aiScoreBreakdown.finalScore = finalScore;
 
   // Mastery Check: Score > 90% AND First Attempt Rate > 80%
   const masteryAchieved = finalScore >= 90 && firstAttemptSuccessRate >= 80;
@@ -1459,20 +1605,67 @@ export async function completeAttempt(
 
   // 6. Confidence Indicator (Percentage of correct answers answered quickly, e.g., < 30s)
   // Threshold can be adjusted or made dynamic based on question difficulty in future
-  const fastCorrectCount = qAttempts.filter(
-    (qa) => qa.is_correct && (qa.time_taken_seconds || 0) < 30,
-  ).length;
+  const fastCorrectCount = qAttempts.filter((qa) => {
+    let qScore = 0;
+    if (
+      qa.attempt_history &&
+      Array.isArray(qa.attempt_history) &&
+      qa.attempt_history.length > 0
+    ) {
+      let totalAiScore = 0;
+      let validAttemptCount = 0;
+      for (const attempt of qa.attempt_history) {
+        if (
+          typeof attempt === "object" &&
+          attempt !== null &&
+          "aiScore" in attempt &&
+          typeof attempt.aiScore === "number"
+        ) {
+          totalAiScore += attempt.aiScore;
+          validAttemptCount++;
+        }
+      }
+      if (validAttemptCount > 0)
+        qScore = Math.round(totalAiScore / validAttemptCount);
+      else qScore = qa.is_correct ? qa.ai_score || 100 : qa.ai_score || 0;
+    } else {
+      qScore = qa.is_correct ? qa.ai_score || 100 : qa.ai_score || 0;
+    }
+    return qScore >= 60 && (qa.time_taken_seconds || 0) < 30;
+  }).length;
   const confidenceIndicator =
     correctTotal > 0 ? Math.round((fastCorrectCount / correctTotal) * 100) : 0;
 
   // 7. Questions Requiring Study (Count of questions with low weighted score, e.g., < 60)
-  // We need to re-calculate the weighted score per question to count this,
-  // or we can estimate it based on (Wrong OR (Correct + Hints)).
-  // Let's use the same logic as the weighted score calculation.
+  // We already recalculated our weighted score based on the average.
   const questionsRequiringStudy = qAttempts.filter((qa) => {
     let qScore = 0;
-    if (qa.is_correct) qScore = 100;
-    else if (qa.ai_score) qScore = Number(qa.ai_score);
+    if (
+      qa.attempt_history &&
+      Array.isArray(qa.attempt_history) &&
+      qa.attempt_history.length > 0
+    ) {
+      let totalAiScore = 0;
+      let validAttemptCount = 0;
+      for (const attempt of qa.attempt_history) {
+        if (
+          typeof attempt === "object" &&
+          attempt !== null &&
+          "aiScore" in attempt &&
+          typeof attempt.aiScore === "number"
+        ) {
+          totalAiScore += attempt.aiScore;
+          validAttemptCount++;
+        }
+      }
+      if (validAttemptCount > 0)
+        qScore = Math.round(totalAiScore / validAttemptCount);
+      else qScore = qa.is_correct ? qa.ai_score || 100 : qa.ai_score || 0;
+    } else {
+      qScore = qa.is_correct ? qa.ai_score || 100 : qa.ai_score || 0;
+    }
+
+    // Apply penalties to this raw score to see if it requires study
     const penalty = (qa.hints_used || 0) * 10;
     qScore = Math.max(0, qScore - penalty);
     return qScore < 60; // Threshold for "needs study"
@@ -1495,6 +1688,7 @@ export async function completeAttempt(
     basic_score: basicScore,
     confidence_indicator: confidenceIndicator,
     questions_requiring_study: questionsRequiringStudy,
+    ai_score_breakdown: aiScoreBreakdown as unknown as Json, // Save the breakdown payload
   };
 
   // Preserve qualitative/optional metrics if passed from frontend
@@ -2024,22 +2218,43 @@ export async function calculateAndSaveMetrics(
   // 2. Calculate Metrics
   const totalAttempts = attempts.length;
 
-  // Basic Score Avg
-  const totalBasicScore = attempts.reduce(
+  // Average Score (Total weighted final score)
+  const totalScore = attempts.reduce(
     (sum, a) => sum + (Number(a.score) || 0),
+    0,
+  );
+  const averageTotalScore = Math.round(totalScore / totalAttempts);
+
+  // Basic Score Avg (Using basic_score which tracks raw % correct, fallback to final score)
+  const totalBasicScore = attempts.reduce(
+    (sum, a) => sum + (Number(a.basic_score) || Number(a.score) || 0),
     0,
   );
   const averageBasicScore = Math.round(totalBasicScore / totalAttempts);
 
-  // Improvement Rate (Last Score - First Score)
+  // AI Score Avg
+  const totalAiScore = attempts.reduce(
+    (sum, a) => sum + (Number(a.ai_score) || 0),
+    0,
+  );
+  const averageAiScore = Math.round(totalAiScore / totalAttempts);
+
+  // Learning Engagement Avg
+  const totalEngagement = attempts.reduce(
+    (sum, a) => sum + (Number(a.learning_engagement_rate) || 0),
+    0,
+  );
+  const averageLearningEngagement = Math.round(totalEngagement / totalAttempts);
+
+  // Improvement Rate (Last Score - First bare Score)
   const firstScore = Number(attempts[0].score) || 0;
   const lastScore = Number(attempts[attempts.length - 1].score) || 0;
   const improvementRate = lastScore - firstScore;
 
-  // Consistency (Standard Deviation-based score)
+  // Consistency (Standard Deviation-based score using the final final score)
   const variance =
     attempts.reduce(
-      (sum, a) => sum + Math.pow((Number(a.score) || 0) - averageBasicScore, 2),
+      (sum, a) => sum + Math.pow((Number(a.score) || 0) - averageTotalScore, 2),
       0,
     ) / (totalAttempts || 1);
   const stdDev = Math.sqrt(variance);
@@ -2063,14 +2278,14 @@ export async function calculateAndSaveMetrics(
     studentId,
     testId,
     averageBasicScore,
-    averageAiScore: 0,
+    averageAiScore, // Now actually calculated
     totalAttempts,
     improvementRate,
     consistencyScore,
     averageHintUsage,
-    averageLearningEngagement: 0,
+    averageLearningEngagement, // Now actually calculated
     averageTimeEfficiency: averageTime,
-    strongTopics: [],
+    strongTopics: [], // Would require aggregating tags across questions
     weakTopics: [],
   });
 }
@@ -2291,7 +2506,7 @@ export async function getAllStudentMetrics(testId?: string) {
       average_basic_score,
       average_learning_engagement,
       total_attempts,
-      student:profiles!inner(name),
+      student:profiles!inner(name,avatar_url),
       test:tests!inner(title)
     `,
   );
@@ -2315,7 +2530,7 @@ export async function getAllStudentMetrics(testId?: string) {
     | "total_attempts"
   > & {
     test: { title: string } | null;
-    student: { name: string } | null;
+    student: { name: string; avatar_url: string } | null;
   };
 
   const metrics = data as unknown as MetricRow[];
@@ -2326,6 +2541,7 @@ export async function getAllStudentMetrics(testId?: string) {
     averageLearningEngagement: Number(m.average_learning_engagement) || 0,
     totalAttempts: m.total_attempts || 0,
     studentName: m.student?.name || "Unknown",
+    studentAvatar: m.student?.avatar_url || "Unknown",
     testTitle: m.test?.title || "Unknown",
   }));
 }

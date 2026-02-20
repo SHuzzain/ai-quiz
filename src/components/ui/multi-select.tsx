@@ -67,7 +67,7 @@ export function MultiSelect({
                             <Badge
                                 variant="secondary"
                                 key={item}
-                                className="mr-1 mb-1"
+                                className="mr-1 mb-1 text-wrap"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     handleUnselect(item);

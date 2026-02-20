@@ -205,7 +205,7 @@ export function TestResultsPage() {
                         {result.hintsUsed > 0 && (
                           <div className="flex items-center gap-1 text-xs text-kid-yellow font-medium bg-kid-yellow/10 px-2 py-1 rounded-full whitespace-nowrap">
                             <Lightbulb className="w-3 h-3" />
-                            {result.hintsUsed}
+                            {questionAttempt?.generatedHints.length}
                           </div>
                         )}
                         {(questionAttempt?.viewedMicroLearning) && (

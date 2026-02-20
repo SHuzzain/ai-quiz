@@ -5,7 +5,12 @@
  * When backend is ready, only the service functions need to change.
  */
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
 import {
   User,
   Test,
@@ -464,6 +469,13 @@ export function useAnalytics() {
   });
 }
 
+export function useSuspenseAnalytics() {
+  return useSuspenseQuery({
+    queryKey: queryKeys.analytics,
+    queryFn: api.getOverallAnalytics,
+  });
+}
+
 export function useTestAnalytics(testId: string) {
   return useQuery({
     queryKey: queryKeys.testAnalytics(testId),
@@ -499,8 +511,26 @@ export function usePerformanceMetrics(
   });
 }
 
+export function useSuspensePerformanceMetrics(
+  page = 1,
+  pageSize = 20,
+  filters?: { search?: string; testId?: string },
+) {
+  return useSuspenseQuery({
+    queryKey: ["performanceMetrics", page, pageSize, filters],
+    queryFn: () => api.getPerformanceMetrics(page, pageSize, filters),
+  });
+}
+
 export function useAllStudentMetrics(testId?: string) {
   return useQuery({
+    queryKey: ["allStudentMetrics", testId],
+    queryFn: () => api.getAllStudentMetrics(testId),
+  });
+}
+
+export function useSuspenseAllStudentMetrics(testId?: string) {
+  return useSuspenseQuery({
     queryKey: ["allStudentMetrics", testId],
     queryFn: () => api.getAllStudentMetrics(testId),
   });

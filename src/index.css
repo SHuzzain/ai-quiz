@@ -275,7 +275,7 @@
   /* Input for kids - larger, more readable */
   .input-kid {
     @apply w-full px-6 py-4 text-xl rounded-2xl border-3 border-muted bg-white;
-    @apply focus:border-primary focus:ring-4 focus:ring-primary/20 transition-all;
+    @apply focus:border-primarySoft focus:ring-4 focus:ring-primarySoft/20 transition-all;
   }
 
   /* Modal backdrop */

@@ -9,9 +9,15 @@ import { AdminLayout } from '@/components/layout';
 import { useAttemptDetails } from '@/hooks/useApi';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowLeft, Clock, Award, AlertCircle, CheckCircle2, XCircle, HelpCircle, BrainCircuit, FileText } from 'lucide-react';
+import { ArrowLeft, Clock, Award, AlertCircle, CheckCircle2, XCircle, HelpCircle, BrainCircuit, FileText, Info } from 'lucide-react';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
     Accordion,
     AccordionContent,
@@ -156,21 +162,53 @@ export function AdminTestAttemptDetail() {
                         <CardHeader className="pb-2">
                             <CardTitle className="text-sm font-medium text-muted-foreground">AI Insights</CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                                <span>Mastery</span>
-                                <Badge variant={attempt.masteryAchieved ? 'default' : 'outline'} className={attempt.masteryAchieved ? 'bg-green-600 hover:bg-green-700' : ''}>
-                                    {attempt.masteryAchieved ? 'Achieved' : 'In Progress'}
-                                </Badge>
-                            </div>
-                            <div className="flex justify-between">
-                                <span>Engagement</span>
-                                <span className="font-medium">{attempt.learningEngagementRate ?? 0}%</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span>Persistence</span>
-                                <span className="font-medium">{attempt.persistenceScore ?? 0}%</span>
-                            </div>
+                        <CardContent className="space-y-4 text-sm mt-2">
+                            <TooltipProvider>
+                                <div className="flex justify-between items-center">
+                                    <div className="flex items-center gap-1.5 hover:text-foreground/80 cursor-help">
+                                        <span>Mastery</span>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Info className="w-4 h-4 text-muted-foreground" />
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Achieved when Score ≥ 90% and First Attempt Success ≥ 80%</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </div>
+                                    <Badge variant={attempt.masteryAchieved ? 'default' : 'outline'} className={attempt.masteryAchieved ? 'bg-green-600 hover:bg-green-700' : ''}>
+                                        {attempt.masteryAchieved ? 'Achieved' : 'In Progress'}
+                                    </Badge>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <div className="flex items-center gap-1.5 hover:text-foreground/80 cursor-help">
+                                        <span>Engagement</span>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Info className="w-4 h-4 text-muted-foreground" />
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Percentage of questions answered using hints or learning aids</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </div>
+                                    <span className="font-medium">{attempt.learningEngagementRate ?? 0}%</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <div className="flex items-center gap-1.5 hover:text-foreground/80 cursor-help">
+                                        <span>Persistence</span>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Info className="w-4 h-4 text-muted-foreground" />
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Rate of answering correctly after initially struggling on a question</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </div>
+                                    <span className="font-medium">{attempt.persistenceScore ?? 0}%</span>
+                                </div>
+                            </TooltipProvider>
                         </CardContent>
                     </Card>
                 </div>
@@ -195,7 +233,7 @@ export function AdminTestAttemptDetail() {
                                                 >
                                                     Q{index + 1}
                                                 </Badge>
-                                                <span className="font-medium flex-1 truncate">
+                                                <span className="font-medium flex-1 ">
                                                     {question?.questionText.replace('__BLANK__', '______')}
                                                 </span>
 
