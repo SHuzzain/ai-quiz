@@ -47,6 +47,8 @@ export function TestTakingPage() {
   const [showWrongModal, setShowWrongModal] = useState(false);
   const [showMicroLearning, setShowMicroLearning] = useState(false);
   const [microLearningContent, setMicroLearningContent] = useState('');
+  const [aiQuestion, setAiQuestion] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
   const [attemptCount, setAttemptCount] = useState(0);
   const [microLearningViewed, setMicroLearningViewed] = useState(false); // Track if viewed for current question
@@ -117,7 +119,7 @@ export function TestTakingPage() {
       setTimeout(() => {
         // Pass true to indicate the current question was answered correctly
         goToNextQuestion(true);
-      }, 1500);
+      }, 2000);
     } else {
       setAttemptCount(prev => prev + 1);
       setIsCorrect(false);
@@ -152,6 +154,23 @@ export function TestTakingPage() {
     setMicroLearningViewed(true); // Mark as viewed
   };
 
+  const handleAskAI = async () => {
+    if (!currentQuestion || !aiQuestion.trim()) return;
+    setAiLoading(true);
+    try {
+      const content = await getMicroLearning.mutateAsync({
+        questionId: currentQuestion.id,
+        attemptId: attempt?.id,
+        studentQuestion: aiQuestion.trim()
+      });
+      // Replace the current content with the new tailored explanation
+      setMicroLearningContent(content);
+      setAiQuestion('');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   const handleFileDownload = (fileUrl: string) => {
     if (attempt && currentQuestion) {
       trackDownload.mutate({
@@ -166,6 +185,7 @@ export function TestTakingPage() {
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(prev => prev + 1);
       setAnswer('');
+      setAiQuestion('');
       setHintsUsed([]);
       setIsCorrect(null);
       setAttemptCount(0);
@@ -394,6 +414,31 @@ export function TestTakingPage() {
                       </div>
                     </div>
                   )}
+
+                  {/* AI Assist Follow-up */}
+                  <div className="mt-6 pt-4 border-t border-kid-blue/20">
+                    <label className="text-sm font-semibold text-kid-blue flex items-center gap-2 mb-2">
+                      <Sparkles className="w-4 h-4" /> AI Assistant (Ask any thing related to this question)
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={aiQuestion}
+                        onChange={(e) => setAiQuestion(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleAskAI()}
+                        placeholder="e.g., Can you explain the steps to solve this?"
+                        className="input-kid text-base py-3 flex-1"
+                        disabled={aiLoading}
+                      />
+                      <Button
+                        onClick={handleAskAI}
+                        disabled={!aiQuestion.trim() || aiLoading}
+                        className="py-6 px-8 bg-blue-400 hover:bg-blue-500 text-white rounded-xl text-base font-semibold"
+                      >
+                        {aiLoading ? "Thinking..." : "Ask"}
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -482,24 +527,88 @@ export function TestTakingPage() {
         )}
       </AnimatePresence>
 
-      {/* Success Animation */}
+      {/* Success Animation Modal */}
       <AnimatePresence>
         {isCorrect === true && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-40 pointer-events-none flex items-center justify-center"
-          >
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: [0, 1.2, 1] }}
-              transition={{ duration: 0.5 }}
-              className="text-8xl"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.5, rotate: -5 }}
+              animate={{ opacity: 1, scale: 1, rotate: 0 }}
+              exit={{ opacity: 0, scale: 0.5, rotate: 5 }}
+              transition={{ type: "spring", damping: 12, stiffness: 100 }}
+              className="relative bg-white rounded-[2rem] p-12 max-w-md w-full shadow-2xl text-center overflow-hidden"
             >
-              🎉
+              {/* Decorative spinning background blobs for kids */}
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                className="absolute -top-20 -right-20 w-40 h-40 bg-green-50 rounded-full blur-2xl"
+              />
+              <motion.div
+                animate={{ rotate: -360 }}
+                transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+                className="absolute -bottom-20 -left-20 w-40 h-40 bg-emerald-50 rounded-full blur-2xl"
+              />
+
+              <motion.div
+                initial={{ scale: 0, y: 50 }}
+                animate={{ scale: 1, y: 0 }}
+                transition={{ type: "spring", bounce: 0.6, duration: 0.8, delay: 0.1 }}
+                className="relative w-32 h-32 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-8 shadow-inner z-10"
+              >
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: [0, 1.2, 1] }}
+                  transition={{ duration: 0.5, delay: 0.4 }}
+                >
+                  <CheckCircle2 className="w-16 h-16 text-emerald-500" strokeWidth={3} />
+                </motion.div>
+                {/* Small popping dots */}
+                <motion.div
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: [0, 1.5, 1], opacity: [0, 1, 0] }}
+                  transition={{ duration: 1.2, delay: 0.3 }}
+                  className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-yellow-400"
+                />
+                <motion.div
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: [0, 1.5, 1], opacity: [0, 1, 0] }}
+                  transition={{ duration: 1.2, delay: 0.5 }}
+                  className="absolute top-4 -left-4 w-3 h-3 rounded-full bg-emerald-400"
+                />
+                <motion.div
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: [0, 1.5, 1], opacity: [0, 1, 0] }}
+                  transition={{ duration: 1.2, delay: 0.4 }}
+                  className="absolute bottom-2 -right-4 w-5 h-5 rounded-full bg-blue-400"
+                />
+              </motion.div>
+
+              <motion.h3
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3, duration: 0.5 }}
+                className="relative text-4xl font-extrabold mb-4 text-emerald-500 tracking-tight z-10"
+              >
+                Awesome!
+              </motion.h3>
+
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4, duration: 0.5 }}
+                className="relative text-slate-500 text-xl font-medium z-10"
+              >
+                You got it right! Get ready for the next one...
+              </motion.p>
             </motion.div>
-          </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

@@ -416,10 +416,12 @@ export function useMicroLearning() {
     mutationFn: ({
       questionId,
       attemptId,
+      studentQuestion,
     }: {
       questionId: string;
       attemptId?: string;
-    }) => api.getMicroLearning(questionId, attemptId),
+      studentQuestion?: string;
+    }) => api.getMicroLearning(questionId, attemptId, studentQuestion),
   });
 }
 

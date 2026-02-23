@@ -10,18 +10,18 @@
 @layer base {
   :root {
     /* Core backgrounds */
-    --background: 210 40% 98%;
-    --foreground: 222 47% 11%;
+    --background: 0 0% 100%;
+    --foreground: 0 0% 9%;
 
     /* Card surfaces */
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 0 0% 9%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 0 0% 9%;
 
-    /* Primary: Vibrant Red - #dd3333 */
-    --primary: 0 72% 53%;
+    /* Primary: MindChamps Dark Red - #8E0000 */
+    --primary: 0 100% 28%;
     --primary-foreground: 0 0% 100%;
 
     /* Primary soft */
@@ -68,27 +68,19 @@
     --radius: 0.75rem;
 
     /* Gradients */
-    --gradient-hero: linear-gradient(
-      135deg,
-      hsl(174 84% 40%) 0%,
-      hsl(200 80% 50%) 100%
-    );
-    --gradient-kid: linear-gradient(
-      135deg,
-      hsl(270 70% 60%) 0%,
-      hsl(330 80% 65%) 50%,
-      hsl(24 95% 60%) 100%
-    );
-    --gradient-success: linear-gradient(
-      135deg,
-      hsl(152 76% 42%) 0%,
-      hsl(174 84% 40%) 100%
-    );
-    --gradient-card: linear-gradient(
-      145deg,
-      hsl(0 0% 100%) 0%,
-      hsl(210 40% 98%) 100%
-    );
+    --gradient-hero: linear-gradient(135deg,
+        hsl(174 84% 40%) 0%,
+        hsl(200 80% 50%) 100%);
+    --gradient-kid: linear-gradient(135deg,
+        hsl(270 70% 60%) 0%,
+        hsl(330 80% 65%) 50%,
+        hsl(24 95% 60%) 100%);
+    --gradient-success: linear-gradient(135deg,
+        hsl(152 76% 42%) 0%,
+        hsl(174 84% 40%) 100%);
+    --gradient-card: linear-gradient(145deg,
+        hsl(0 0% 100%) 0%,
+        hsl(210 40% 98%) 100%);
 
     /* Shadows */
     --shadow-soft: 0 4px 20px -2px hsl(222 47% 11% / 0.08);
@@ -96,14 +88,14 @@
     --shadow-kid: 0 8px 30px -4px hsl(270 70% 60% / 0.25);
 
     /* Admin sidebar */
-    --sidebar-background: 222 47% 11%;
+    --sidebar-background: 0 0% 9%;
     --sidebar-foreground: 210 40% 96%;
-    --sidebar-primary: 0 72% 53%;
+    --sidebar-primary: 0 100% 28%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 47% 20%;
+    --sidebar-accent: 0 0% 15%;
     --sidebar-accent-foreground: 210 40% 96%;
-    --sidebar-border: 222 47% 18%;
-    --sidebar-ring: 0 72% 53%;
+    --sidebar-border: 0 0% 13%;
+    --sidebar-ring: 0 100% 28%;
   }
 
   .dark {
@@ -116,7 +108,8 @@
     --popover: 222 47% 9%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 0 72% 53%;
+    /* Primary */
+    --primary: 0 100% 28%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 222 47% 15%;
@@ -143,12 +136,12 @@
 
     --sidebar-background: 222 47% 5%;
     --sidebar-foreground: 210 40% 96%;
-    --sidebar-primary: 174 84% 50%;
+    --sidebar-primary: 0 100% 28%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 222 47% 12%;
     --sidebar-accent-foreground: 210 40% 96%;
     --sidebar-border: 222 47% 12%;
-    --sidebar-ring: 174 84% 50%;
+    --sidebar-ring: 0 100% 28%;
   }
 }
 
@@ -179,6 +172,7 @@
 }
 
 @layer components {
+
   /* Hero gradient button */
   .btn-hero {
     @apply relative overflow-hidden px-8 py-4 rounded-2xl font-bold text-lg text-white;
@@ -285,13 +279,16 @@
 
   /* Celebration animation */
   @keyframes celebrate {
+
     0%,
     100% {
       transform: scale(1) rotate(0deg);
     }
+
     25% {
       transform: scale(1.1) rotate(-5deg);
     }
+
     75% {
       transform: scale(1.1) rotate(5deg);
     }
@@ -307,12 +304,15 @@
       transform: scale(0.3);
       opacity: 0;
     }
+
     50% {
       transform: scale(1.05);
     }
+
     70% {
       transform: scale(0.9);
     }
+
     100% {
       transform: scale(1);
       opacity: 1;
@@ -325,10 +325,12 @@
 
   /* Shake for wrong answer */
   @keyframes shake {
+
     0%,
     100% {
       transform: translateX(0);
     }
+
     10%,
     30%,
     50%,
@@ -336,6 +338,7 @@
     90% {
       transform: translateX(-5px);
     }
+
     20%,
     40%,
     60%,
@@ -350,10 +353,12 @@
 
   /* Floating animation for decorative elements */
   @keyframes float {
+
     0%,
     100% {
       transform: translateY(0) rotate(0deg);
     }
+
     50% {
       transform: translateY(-20px) rotate(5deg);
     }

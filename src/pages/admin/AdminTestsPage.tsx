@@ -131,21 +131,21 @@ export function AdminTestsPage() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem asChild>
-                        <Link to={`/admin/tests/${test.id}`}>
+                      <DropdownMenuItem asChild className="focus:bg-primary/10 focus:text-primary">
+                        <Link to={`/admin/tests/${test.id}`} className="text-foreground hover:text-primary">
                           <Eye className="w-4 h-4 mr-2" />
                           View
                         </Link>
                       </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to={`/admin/tests/${test.id}/edit`}>
+                      <DropdownMenuItem asChild className="focus:bg-primary/10 focus:text-primary">
+                        <Link to={`/admin/tests/${test.id}/edit`} className="text-foreground hover:text-primary">
                           <Edit className="w-4 h-4 mr-2" />
                           Edit
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => handleDelete(test.id)}
-                        className="text-destructive"
+                        className="text-destructive focus:bg-destructive/10 focus:text-destructive"
                       >
                         <Trash2 className="w-4 h-4 mr-2" />
                         Delete

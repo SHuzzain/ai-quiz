@@ -1225,6 +1225,7 @@ export async function useHint(
 export async function getMicroLearning(
   questionId: string,
   attemptId?: string,
+  studentQuestion?: string,
 ): Promise<string> {
   // 1. Fetch static content
   const { data: question } = await supabase
@@ -1237,61 +1238,64 @@ export async function getMicroLearning(
 
   if (!question) return "";
 
-  if (question.micro_learning && question.micro_learning.trim() !== "") {
-    return question.micro_learning;
-  }
-
-  // 2. If no static content, try to find generated content
-  if (attemptId) {
-    const { data: qAttempt } = await supabase
-      .from("question_attempts")
-      .select("micro_learning_content")
-      .eq("attempt_id", attemptId)
-      .eq("question_id", questionId)
-      .maybeSingle();
-
-    if (qAttempt?.micro_learning_content) {
-      return qAttempt.micro_learning_content;
-    }
-
-    // 3. Generate new AI content (via Supabase Edge Function)
-    try {
-      const { data: generatedData, error: funcError } =
-        await supabase.functions.invoke("generate-micro-learning", {
-          body: {
-            questionText: question.questionText,
-            correctAnswer: question.correctAnswer,
-          },
-        });
-
-      if (funcError) throw funcError;
-      const newContent = generatedData.content;
-
-      // 4. Store generated content
-      const { error: upsertError } = await supabase
+  // If no static content, or if the student has a specific question, try to generate AI content.
+  // Note: if studentQuestion is provided, we bypass the static micro_learning to give them a tailored answer.
+  if (!question.micro_learning || question.micro_learning.trim() === "" || studentQuestion) {
+    if (attemptId) {
+      const { data: qAttempt } = await supabase
         .from("question_attempts")
-        .upsert(
-          {
-            attempt_id: attemptId,
-            question_id: questionId,
-            micro_learning_content: newContent,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "attempt_id, question_id" },
-        );
+        .select("micro_learning_content")
+        .eq("attempt_id", attemptId)
+        .eq("question_id", questionId)
+        .maybeSingle();
 
-      if (upsertError) {
-        console.error("Failed to store micro-learning", upsertError);
+      // Only return previously generated content if they are NOT asking a new question
+      if (qAttempt?.micro_learning_content && !studentQuestion) {
+        return qAttempt.micro_learning_content;
       }
 
-      return newContent;
-    } catch (err) {
-      console.error("AI Micro-learning Generation failed:", err);
-      return "Learning is fun! Keep exploring this topic."; // Fallback
+      // 3. Generate new AI content (via Supabase Edge Function)
+      try {
+        const { data: generatedData, error: funcError } =
+          await supabase.functions.invoke("generate-micro-learning", {
+            body: {
+              questionText: question.questionText,
+              correctAnswer: question.correctAnswer,
+              studentQuestion: studentQuestion,
+            },
+          });
+
+        if (funcError) throw funcError;
+        const newContent = generatedData.content;
+
+        // 4. Store generated content
+        const { error: upsertError } = await supabase
+          .from("question_attempts")
+          .upsert(
+            {
+              attempt_id: attemptId,
+              question_id: questionId,
+              micro_learning_content: newContent,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "attempt_id, question_id" },
+          );
+
+        if (upsertError) {
+          console.error("Failed to store micro-learning", upsertError);
+        }
+
+        return newContent;
+      } catch (err) {
+        console.error("AI Micro-learning Generation failed:", err);
+        return "Learning is fun! Keep exploring this topic."; // Fallback
+      }
     }
+
+    return "";
   }
 
-  return "";
+  return question.micro_learning;
 }
 
 /**
@@ -1778,30 +1782,30 @@ export async function completeAttempt(
     questionResults: [],
     test: fullTest
       ? {
-          id: fullTest.id,
-          title: fullTest.title,
-          description: fullTest.description,
-          status: fullTest.status as Test["status"],
-          scheduledDate: new Date(fullTest.scheduled_date),
-          duration: fullTest.duration,
-          createdAt: new Date(fullTest.created_at),
-          createdBy: fullTest.created_by,
-          lessonId: fullTest.lesson_id || undefined,
-          questionCount: fullTest.question_count,
-          questions: [], // Questions not needed or not fetched here for now
-        }
+        id: fullTest.id,
+        title: fullTest.title,
+        description: fullTest.description,
+        status: fullTest.status as Test["status"],
+        scheduledDate: new Date(fullTest.scheduled_date),
+        duration: fullTest.duration,
+        createdAt: new Date(fullTest.created_at),
+        createdBy: fullTest.created_by,
+        lessonId: fullTest.lesson_id || undefined,
+        questionCount: fullTest.question_count,
+        questions: [], // Questions not needed or not fetched here for now
+      }
       : {
-          id: "unknown",
-          title: "Unknown Test",
-          description: "",
-          status: "draft",
-          scheduledDate: new Date(),
-          duration: 0,
-          createdAt: new Date(),
-          createdBy: "",
-          questionCount: 0,
-          questions: [],
-        },
+        id: "unknown",
+        title: "Unknown Test",
+        description: "",
+        status: "draft",
+        scheduledDate: new Date(),
+        duration: 0,
+        createdAt: new Date(),
+        createdBy: "",
+        questionCount: 0,
+        questions: [],
+      },
   };
 }
 
@@ -2121,19 +2125,19 @@ export async function getOverallAnalytics(): Promise<OverallAnalytics> {
       const avgScore =
         completed.length > 0
           ? completed.reduce((sum, a) => sum + (a.score || 0), 0) /
-            completed.length
+          completed.length
           : 0;
 
       const avgTime =
         completed.length > 0
           ? completed.reduce((sum, a) => sum + (a.time_taken_seconds || 0), 0) /
-            completed.length
+          completed.length
           : 0;
 
       const avgHints =
         completed.length > 0
           ? completed.reduce((sum, a) => sum + (a.hints_used || 0), 0) /
-            completed.length
+          completed.length
           : 0;
 
       const completionRate =
@@ -2182,7 +2186,7 @@ export async function getTestAnalytics(testId: string) {
   const avgTime =
     completed.length > 0
       ? completed.reduce((sum, a) => sum + (a.time_taken_seconds || 0), 0) /
-        completed.length
+      completed.length
       : 0;
 
   return {

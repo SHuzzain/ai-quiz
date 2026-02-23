@@ -47,7 +47,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   };
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="h-screen overflow-hidden bg-background flex">
       {/* Mobile overlay */}
       <AnimatePresence>
         {sidebarOpen && (
