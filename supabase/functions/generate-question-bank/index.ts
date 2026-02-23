@@ -10,16 +10,22 @@ const openai = createOpenAI({
 
 const RequestSchema = z.object({
   content: z.string(),
-  count: z.number().default(5),
 });
 
 const QuestionBankItemSchema = z.object({
   title: z.string().describe("The text of the generated question"),
   difficulty: z.number().min(1).max(5).describe("Difficulty score from 1 to 5"),
+  difficultyReason: z
+    .string()
+    .describe("A short reason why this difficulty level was chosen"),
   marks: z
     .number()
     .describe("Recommended full marks integer for retrieving a correct answer"),
   answer: z.string().describe("The correct answer to the question"),
+  working: z
+    .string()
+    .optional()
+    .describe("Working or explanation to arrive at the answer, if applicable"),
 });
 
 const ResponseSchema = z.object({
@@ -34,8 +40,25 @@ const ResponseSchema = z.object({
   questions: z.array(QuestionBankItemSchema),
 });
 
-const SYSTEM_PROMPT =
-  "You are an expert educational content creator. Analyze the provided educational text and extract a core 'topic' and specific 'concept'. Then, generate a set of quality questions for a Question Bank covering this material. Each question must have a 'title' (the question itself), a 'difficulty' rating from 1 to 5, an appropriate 'marks' weighting, and the correct 'answer'.";
+const SYSTEM_PROMPT = `
+You are an expert educational content creator. Analyze the provided educational text and extract a core 'topic' and specific 'concept'. 
+
+Then, generate exactly 10 high-quality questions for a Question Bank covering this material. 
+The 10 questions must include these 5 types of variations based on the core concept:
+1. Re-sentencing or rephrasing a concept.
+2. Changing names and numbers in a scenario.
+3. Different meaning or context but testing the same outcome/skill.
+4. Much harder difficulty phrasing.
+5. Much easier difficulty phrasing.
+
+Each question must have:
+- A 'title' (the question itself).
+- A explicitly assigned 'difficulty' rating from 1 to 5 (1 being easy, 5 being hard).
+- A 'difficultyReason' briefly explaining why this rating was chosen based on the variation type.
+- An appropriate 'marks' weighting integer.
+- The correct 'answer'.
+- An optional 'working' explanation showing how to solve it.
+`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -43,11 +66,11 @@ serve(async (req) => {
   }
 
   try {
-    const { content, count } = await req.json();
+    const { content } = await req.json();
 
-    RequestSchema.parse({ content, count });
+    RequestSchema.parse({ content });
 
-    const prompt = `Generate ${count} question bank entries based on the following document content:\n\n${content.substring(0, 10000)}`;
+    const prompt = `Generate exactly 10 question bank entries based on the following document content:\n\n${content.substring(0, 10000)}`;
 
     const { output } = await generateText({
       model: openai("gpt-4o-mini"),

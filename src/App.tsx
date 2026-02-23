@@ -17,6 +17,8 @@ import { AdminLessonsPage } from "@/pages/admin/AdminLessonsPage";
 import { AdminAnalyticsPage } from "@/pages/admin/AdminAnalyticsPage";
 import { AdminTestsReportPage } from "@/pages/admin/AdminTestsReportPage";
 import { AdminTestAttemptDetail } from "@/pages/admin/AdminTestAttemptDetail";
+import { AdminQuestionBankPage } from "@/pages/admin/AdminQuestionBankPage";
+
 import { StudentDashboard } from "@/pages/student/StudentDashboard";
 import { StudentTestsPage } from "@/pages/student/StudentTestsPage";
 import { StudentResultsListPage } from "@/pages/student/StudentResultsListPage";
@@ -50,6 +52,8 @@ const App = () => (
             <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
             <Route path="/admin/reports" element={<AdminTestsReportPage />} />
             <Route path="/admin/reports/:attemptId" element={<AdminTestAttemptDetail />} />
+            <Route path="/admin/question-bank" element={<AdminQuestionBankPage />} />
+
             <Route path="/admin/profile" element={<ProfilePage />} />
 
 

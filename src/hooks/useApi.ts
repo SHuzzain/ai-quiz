@@ -16,12 +16,9 @@ import {
   Test,
   Question,
   Lesson,
-  TestAttempt,
   TestWithQuestions,
-  AttemptResult,
-  OverallAnalytics,
-  PaginatedResponse,
   UserRole,
+  TestAttempt,
 } from "@/types";
 import * as api from "@/services/api";
 
@@ -58,6 +55,9 @@ export const queryKeys = {
   // Analytics
   analytics: ["analytics"] as const,
   testAnalytics: (testId: string) => ["analytics", "test", testId] as const,
+
+  // Question Bank
+  questionBankItems: ["questionBankItems"] as const,
 };
 
 export function useCurrentUser() {
@@ -533,5 +533,33 @@ export function useSuspenseAllStudentMetrics(testId?: string) {
   return useSuspenseQuery({
     queryKey: ["allStudentMetrics", testId],
     queryFn: () => api.getAllStudentMetrics(testId),
+  });
+}
+
+// ============================================
+// Question Bank Hooks
+// ============================================
+
+export function useGenerateQuestionVariants() {
+  return useMutation({
+    mutationFn: api.generateQuestionVariants,
+  });
+}
+
+export function useSaveQuestionBankItems() {
+  return useMutation({
+    mutationFn: api.saveQuestionBankItems,
+  });
+}
+
+export function useEvaluateQuestionQuality() {
+  return useMutation({
+    mutationFn: api.evaluateQuestionQuality,
+  });
+}
+
+export function useRegenerateQuestionVariant() {
+  return useMutation({
+    mutationFn: api.regenerateQuestionVariant,
   });
 }

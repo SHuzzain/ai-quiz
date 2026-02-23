@@ -16,7 +16,8 @@ import {
   X,
   LogOut,
   ChevronRight,
-  ClipboardList
+  ClipboardList,
+  Database
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
@@ -32,6 +33,7 @@ const navItems = [
   { path: '/admin/lessons', icon: GraduationCap, label: 'Lessons' },
   { path: '/admin/reports', icon: ClipboardList, label: 'Reports' },
   { path: '/admin/analytics', icon: BarChart3, label: 'Analytics' },
+  { path: '/admin/question-bank', icon: Database, label: 'Question Bank' },
 ];
 
 export function AdminLayout({ children }: AdminLayoutProps) {

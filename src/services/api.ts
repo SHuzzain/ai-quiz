@@ -23,6 +23,7 @@ import {
   TestAnalytics,
   ExtractedQuestion,
   FileUpload,
+  QuestionBankItem,
 } from "@/types";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -32,6 +33,7 @@ import {
   TablesInsert,
   TablesUpdate,
 } from "@/integrations/supabase/types";
+import { VariantConfigForm } from "@/schemas/questionBank";
 
 // ============================================
 // Authentication Services
@@ -2538,10 +2540,178 @@ export async function getAllStudentMetrics(testId?: string) {
   return metrics.map((m) => ({
     studentId: m.student_id,
     averageBasicScore: Number(m.average_basic_score) || 0,
-    averageLearningEngagement: Number(m.average_learning_engagement) || 0,
-    totalAttempts: m.total_attempts || 0,
-    studentName: m.student?.name || "Unknown",
     studentAvatar: m.student?.avatar_url || "Unknown",
     testTitle: m.test?.title || "Unknown",
   }));
+}
+
+// ============================================
+// Question Bank Services
+// ============================================
+
+export interface VariantConfig {
+  topics: string[];
+  concepts: string[];
+  difficulty: number;
+  marks: number;
+  variantCount: number;
+}
+
+export interface GenerateVariantsPayload {
+  documentText?: string;
+  configurations: Pick<
+    VariantConfigForm,
+    "topics" | "concepts" | "difficulty" | "marks" | "variantCount"
+  >[];
+}
+
+export interface EvaluateQuestionPayload {
+  question: string;
+  answer: string;
+  working?: string;
+}
+
+export interface EvaluateQuestionResponse {
+  isCorrect: boolean;
+  feedback: string;
+  suggestedImprovement?: string;
+}
+
+/**
+ * Generate question variants from context
+ */
+export async function generateQuestionVariants(
+  payload: GenerateVariantsPayload,
+): Promise<{ questions: Partial<QuestionBankItem>[] }> {
+  try {
+    const { data, error } = await supabase.functions.invoke(
+      "generate-question-variants",
+      {
+        body: payload,
+      },
+    );
+
+    if (error) {
+      console.error("Generate variants edge function error:", error);
+      throw error;
+    }
+
+    return data;
+  } catch (err) {
+    console.error("Failed to generate question variants", err);
+    throw err;
+  }
+}
+
+export interface RegenerateQuestionPayload {
+  documentText?: string;
+  currentQuestion: {
+    title?: string;
+    answer?: string;
+    topics?: string[];
+    concepts?: string[];
+    difficulty?: number;
+    marks?: number;
+    working?: string;
+  };
+}
+
+/**
+ * Save items to the Question Bank
+ */
+export async function saveQuestionBankItems(
+  items: Partial<QuestionBankItem>[],
+): Promise<QuestionBankItem[]> {
+  const userResponse = await supabase.auth.getUser();
+  const user = userResponse.data.user;
+
+  if (!user) {
+    throw new Error("You must be logged in to save questions to the bank");
+  }
+
+  const payloadToInsert = items.map((i) => ({
+    title: i.title,
+    answer: i.answer,
+    topics: i.topics || [],
+    concepts: i.concepts || [],
+    difficulty: i.difficulty || 1,
+    marks: i.marks || 1,
+    working: i.working,
+    lesson_id: i.lessonId,
+    created_by: user.id,
+  }));
+
+  const { data, error } = await supabase
+    .from("question_bank")
+    .insert(payloadToInsert)
+    .select();
+
+  if (error) throw error;
+
+  return data.map((q) => ({
+    id: q.id,
+    title: q.title,
+    answer: q.answer,
+    topics: q.topics || [],
+    concepts: q.concepts || [],
+    difficulty: q.difficulty,
+    marks: q.marks,
+    working: q.working || undefined,
+    lessonId: q.lesson_id || undefined,
+    createdBy: q.created_by,
+    createdAt: new Date(q.created_at || new Date()),
+    updatedAt: new Date(q.updated_at || new Date()),
+  }));
+}
+
+/**
+ * Checks a specific question's quality using the AI evaluate Edge Function.
+ */
+export async function evaluateQuestionQuality(
+  payload: EvaluateQuestionPayload,
+): Promise<EvaluateQuestionResponse> {
+  try {
+    const { data, error } = await supabase.functions.invoke(
+      "evaluate-question-quality",
+      {
+        body: payload,
+      },
+    );
+
+    if (error) {
+      console.error("Evaluate question edge function error:", error);
+      throw error;
+    }
+
+    return data;
+  } catch (err) {
+    console.error("Failed to evaluate question quality", err);
+    throw err;
+  }
+}
+
+/**
+ * Regenerates a specific question variant via AI.
+ */
+export async function regenerateQuestionVariant(
+  payload: RegenerateQuestionPayload,
+): Promise<Partial<QuestionBankItem>> {
+  try {
+    const { data, error } = await supabase.functions.invoke(
+      "regenerate-question",
+      {
+        body: payload,
+      },
+    );
+
+    if (error) {
+      console.error("Regenerate question edge function error:", error);
+      throw error;
+    }
+
+    return data;
+  } catch (err) {
+    console.error("Failed to regenerate question variant", err);
+    throw err;
+  }
 }

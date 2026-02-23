@@ -1,7 +1,29 @@
-project_id = "fgeamogmqtxwovwaqxwn"
+project_id = "dktlaceftcbgbevxsgtr"
 
 [functions.analyze-document]
 verify_jwt = false
 
 [functions.extract-questions]
 verify_jwt = false
+
+[functions.evaluate-question-quality]
+verify_jwt = false
+
+[functions.regenerate-question]
+verify_jwt = false
+
+[functions.generate-question-variants]
+verify_jwt = false
+
+[functions.evaluate-answer]
+verify_jwt = false
+
+[functions.generate-hint]
+verify_jwt = false
+
+[functions.generate-micro-learning]
+verify_jwt = false
+
+[functions.generate-question-bank]
+verify_jwt = false
+

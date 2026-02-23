@@ -48,11 +48,11 @@ export function MultiSelect({
         <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
                 <Button
-                    variant="outline"
+
                     role="combobox"
                     aria-expanded={open}
                     className={cn(
-                        "w-full justify-between h-auto min-h-[2.5rem] px-3 py-2",
+                        "w-full justify-between h-auto min-h-[2.5rem] px-3 py-2 bg-gray-100 hover:bg-gray-50",
                         className
                     )}
                     onClick={() => setOpen(!open)}

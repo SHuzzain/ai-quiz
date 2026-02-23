@@ -243,6 +243,7 @@ export interface DocumentAnalysis {
   greeting: string;
   summary: string;
   topics: string[];
+  concepts: string[];
   difficulty: "Beginner" | "Intermediate" | "Advanced";
 }
 
@@ -264,14 +265,20 @@ export interface ExtractedQuestionsResult {
 
 export interface QuestionBankItem {
   id: string;
-  topic: string;
-  concept: string;
   title: string;
-  difficulty: number;
-  marks: number;
   answer: string;
+  topics: string[];
+  concepts: string[];
+  difficulty: number;
+  difficultyReason?: string;
+  marks: number;
+  working?: string;
   lessonId?: string;
   createdAt: Date;
   updatedAt: Date;
   createdBy?: string;
 }
+
+// ============================================
+// Question Bank Types
+// ============================================
