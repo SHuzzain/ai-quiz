@@ -66,9 +66,9 @@ export default function AdminQuestionBankCreatePage() {
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
                         <div className="flex items-center gap-3 mb-1">
-                            <div className="p-2 bg-primary/100 rounded-lg">
+                            {/* <div className="p-2 bg-primary/100 rounded-lg">
                                 <Database className="w-6 h-6 text-primary" />
-                            </div>
+                            </div> */}
                             <h1 className="text-3xl font-bold tracking-tight">Generate Questions</h1>
                         </div>
                         <p className="text-muted-foreground">Use AI to generate high-quality questions from your lesson materials.</p>
