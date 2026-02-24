@@ -93,6 +93,7 @@ export interface TestAttempt {
   correctAnswers: number;
   hintsUsed: number;
   timeTakenSeconds?: number;
+  totalMark?: number;
 
   // AI & Advanced Metrics
   basicScore?: number;
@@ -115,6 +116,7 @@ export interface QuestionAttempt {
   questionId: string;
   studentAnswer: string;
   isCorrect: boolean;
+  mark?: number;
   attemptsCount: number;
   hintsUsed: number;
   viewedMicroLearning: boolean;

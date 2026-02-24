@@ -121,6 +121,7 @@ export function CreateTestPage() {
       }));
       setQuestions(formattedQuestions);
       setInitialQuestionIds(new Set(formattedQuestions.map(q => q.id)));
+      setTotalMarks(existingTest.totalMark || 0);
     }
   }, [existingTest, isEditMode]);
 

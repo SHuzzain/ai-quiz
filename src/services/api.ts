@@ -503,6 +503,14 @@ export async function addQuestion(
       question_text: question.questionText,
       correct_answer: question.correctAnswer,
       order: question.order,
+      topic: question.topic,
+      concept: question.concept,
+      mark: question.mark,
+      difficulty: question.difficulty,
+      working: question.working,
+      difficultyReason: question.difficultyReason,
+      hints: question.hints,
+      micro_learning: question.microLearning,
     })
     .select()
     .single();
@@ -519,6 +527,14 @@ export async function addQuestion(
     questionText: newQuestion.question_text,
     correctAnswer: newQuestion.correct_answer,
     order: newQuestion.order,
+    topic: newQuestion.topic,
+    concept: newQuestion.concept,
+    mark: newQuestion.mark,
+    difficulty: newQuestion.difficulty,
+    working: newQuestion.working,
+    difficultyReason: newQuestion.difficultyReason,
+    hints: newQuestion.hints,
+    microLearning: newQuestion.micro_learning,
   };
 }
 
@@ -539,6 +555,13 @@ export async function updateQuestion(
   if (data.microLearning !== undefined)
     finalUpdates.micro_learning = data.microLearning;
   if (data.order !== undefined) finalUpdates.order = data.order;
+  if (data.topic !== undefined) finalUpdates.topic = data.topic;
+  if (data.concept !== undefined) finalUpdates.concept = data.concept;
+  if (data.difficulty !== undefined) finalUpdates.difficulty = data.difficulty;
+  if (data.mark !== undefined) finalUpdates.mark = data.mark;
+  if (data.working !== undefined) finalUpdates.working = data.working;
+  if (data.difficultyReason !== undefined)
+    finalUpdates.difficultyReason = data.difficultyReason;
 
   const { data: updatedQuestion, error } = await supabase
     .from("questions")
@@ -775,6 +798,7 @@ export async function getStudentAttempts(
     forcedStudyBreaks: a.forced_study_breaks || 0,
     masteryAchieved: a.mastery_achieved || false,
     questionsRequiringStudy: a.questions_requiring_study || 0,
+    totalMark: a.total_mark || 0,
   }));
 }
 
@@ -805,6 +829,7 @@ export async function getTestAttempt(
     correctAnswers: attempt.correct_answers,
     hintsUsed: attempt.hints_used,
     timeTakenSeconds: attempt.time_taken_seconds || 0,
+    totalMark: attempt.total_mark || 0,
     score: attempt.score || 0,
     basicScore: Number(attempt.basic_score) || undefined,
     aiScore: Number(attempt.ai_score) || undefined,
@@ -873,6 +898,7 @@ export async function getAttemptDetails(attemptId: string) {
     masteryAchieved: attempt.mastery_achieved || false,
     learningEngagementRate: attempt.learning_engagement_rate || 0,
     persistenceScore: attempt.persistence_score,
+    totalMark: attempt.total_mark || 0,
   };
 
   const mappedTest = {
@@ -901,6 +927,7 @@ export async function getAttemptDetails(attemptId: string) {
     questionId: qa.question_id,
     studentAnswer: qa.student_answer,
     isCorrect: qa.is_correct,
+    mark: qa.mark || 0,
     attemptsCount: 1, // Basic schema might not track count yet
     hintsUsed: qa.hints_used || 0,
     viewedMicroLearning: qa.micro_learning_viewed || false,
@@ -961,7 +988,7 @@ export async function startTestAttempt(
   // 2. Create new attempt if none exists
   const { data: test } = await supabase
     .from("tests")
-    .select("question_count")
+    .select("question_count, total_mark")
     .eq("id", testId)
     .single();
 
@@ -972,6 +999,7 @@ export async function startTestAttempt(
       student_id: studentId,
       status: "in_progress",
       total_questions: test?.question_count || 0,
+      total_mark: test?.total_mark || 0,
       correct_answers: 0,
       hints_used: 0,
     })
@@ -998,6 +1026,7 @@ export async function startTestAttempt(
     startedAt: new Date(attempt.started_at),
     status: attempt.status as TestAttempt["status"],
     totalQuestions: attempt.total_questions,
+    totalMark: attempt.total_mark || 0,
     correctAnswers: attempt.correct_answers,
     hintsUsed: attempt.hints_used,
     completedAt: attempt.completed_at
@@ -1040,7 +1069,7 @@ export async function submitAnswer(data: {
   // Check correctness
   const { data: question } = await supabase
     .from("questions")
-    .select("question_text, correct_answer")
+    .select("question_text, correct_answer, mark")
     .eq("id", data.questionId)
     .single();
 
@@ -1147,6 +1176,7 @@ export async function submitAnswer(data: {
       ai_feedback: feedback,
       ai_score: bestAiScore, // Persist the BEST score achieve across attempts
       attempt_history: history, // Save full history
+      mark: question.mark || 0,
       answered_on_first_attempt: isCorrect && data.attemptsCount === 1,
       used_no_hints: (data.hintsUsed || 0) === 0,
       showed_persistence: isCorrect && (data.attemptsCount || 1) > 1,
@@ -1346,7 +1376,7 @@ export async function completeAttempt(
   attemptId: string,
   metrics?: Partial<TestAttempt>,
 ): Promise<AttemptResult> {
-  // 1. Fetch validity data: Attempt existence and Test details (question count)
+  // 1. Fetch Attempt + Test Info
   const { data: attemptData, error: attemptError } = await supabase
     .from("test_attempts")
     .select("test_id, student_id")
@@ -1358,23 +1388,19 @@ export async function completeAttempt(
 
   const { data: testData, error: testError } = await supabase
     .from("tests")
-    .select("question_count, duration")
+    .select("question_count, duration, total_mark")
     .eq("id", attemptData.test_id)
     .single();
 
   if (testError || !testData) throw testError || new Error("Test not found");
 
-  // 2. Count ACTUAL correct answers & Aggregate Metrics from the database (Source of Truth)
+  // 2. Fetch Question Attempts (include mark + difficulty)
   const { data: qAttempts, error: countError } = await supabase
     .from("question_attempts")
     .select("*")
     .eq("attempt_id", attemptId);
 
   if (countError) throw countError;
-
-  // We are redefining correctness and score based on Option A (Average of all attempts)
-  let totalWeightedScore = 0;
-  let correctCount = 0;
 
   // Track the breakdown of the score calculation for clarity
   interface ScoreBreakdown {
@@ -1387,364 +1413,231 @@ export async function completeAttempt(
         studyMaterial: number;
         totalPenalty: number;
       };
+      difficultyMultiplier: number;
       finalQuestionScore: number;
+      weightedMark: number;
       isConsideredCorrect: boolean;
     }>;
     timePenalty: number;
     finalScore: number;
+    totalWeightedMarks: number;
+    totalTestMarks: number;
   }
 
   const aiScoreBreakdown: ScoreBreakdown = {
     questions: [],
     timePenalty: 0,
     finalScore: 0,
+    totalWeightedMarks: 0,
+    totalTestMarks: testData.total_mark || 0,
   };
 
-  const totalQuestions = testData.question_count || 0;
-  const safeTotal = totalQuestions > 0 ? totalQuestions : 1;
+  const totalTestMarks = testData.total_mark || 0;
+  const safeTotalMarks = totalTestMarks > 0 ? totalTestMarks : 1;
 
-  const totalHintsUsed = qAttempts.reduce((sum, qa) => {
-    // Scoring Logic per Question: Average of all attempts (Option A)
-    let qScore = 0;
-    let isQuestionCorrect = false;
+  let totalWeightedMarks = 0;
+  let correctCount = 0;
+  let totalHintsUsedCount = 0;
 
+  const getAverageAiScore = (qa): number => {
     if (
       qa.attempt_history &&
       Array.isArray(qa.attempt_history) &&
       qa.attempt_history.length > 0
     ) {
-      // Calculate average aiScore across all attempts
-      let totalAiScore = 0;
-      let validAttemptCount = 0;
+      const scores = qa.attempt_history
+        .map((h) => h?.aiScore)
+        .filter((s) => typeof s === "number");
 
-      for (const attempt of qa.attempt_history) {
-        if (
-          typeof attempt === "object" &&
-          attempt !== null &&
-          "aiScore" in attempt &&
-          typeof attempt.aiScore === "number"
-        ) {
-          totalAiScore += attempt.aiScore;
-          validAttemptCount++;
-        }
-      }
-
-      if (validAttemptCount > 0) {
-        qScore = Math.round(totalAiScore / validAttemptCount);
-      } else {
-        // Fallback if history doesn't contain aiScore
-        qScore = qa.is_correct ? qa.ai_score || 100 : qa.ai_score || 0;
-      }
-
-      // Determine overall correctness (e.g., average >= 60 is considered correct for the test tally)
-      isQuestionCorrect = qScore >= 60;
-    } else {
-      // Fallback for old attempts without history
-      if (qa.is_correct) {
-        qScore = qa?.ai_score || 100;
-        isQuestionCorrect = true;
-      } else if (qa.ai_score) {
-        qScore = Number(qa.ai_score);
-        isQuestionCorrect = qScore >= 60;
-      }
+      if (scores.length > 0)
+        return Math.round(
+          scores.reduce((a: number, b: number) => a + b, 0) / scores.length,
+        );
     }
+    return qa.ai_score ?? (qa.is_correct ? 100 : 0);
+  };
 
-    if (isQuestionCorrect) {
-      correctCount++;
+  const getDifficultyMultiplier = (difficulty: number | null | undefined) => {
+    if (difficulty === null || difficulty === undefined) return 1.0;
+    switch (difficulty) {
+      case 1:
+        return 1.0;
+      case 2:
+        return 0.9;
+      case 3:
+        return 0.75;
+      case 4:
+        return 0.6;
+      case 5:
+        return 0.5;
+      default:
+        return 1.0;
     }
+  };
+
+  const totalTimeTaken = qAttempts.reduce(
+    (sum, qa) => sum + (qa.time_taken_seconds || 0),
+    0,
+  );
+
+  for (const qa of qAttempts) {
+    const rawScore = getAverageAiScore(qa);
+    const isQuestionCorrect = rawScore >= 60;
+    if (isQuestionCorrect) correctCount++;
+    if (qa.hints_used) totalHintsUsedCount += qa.hints_used;
 
     // Penalties
-    let penalty = 0;
+    const baseHintPenalty = (qa.hints_used || 0) * 10;
+    const baseMicroPenalty = qa.micro_learning_viewed ? 20 : 0;
+    const baseStudyPenalty = qa.study_material_downloaded ? 20 : 0;
 
-    // 1. Hint Penalty (-10 per hint)
-    const hints = qa.hints_used || 0;
-    penalty += hints * 10;
+    const diffMultiplier = getDifficultyMultiplier(qa.difficulty);
+    const totalPenalty =
+      (baseHintPenalty + baseMicroPenalty + baseStudyPenalty) * diffMultiplier;
 
-    // 2. Micro-Learning Penalty (-20 if viewed)
-    if (qa.micro_learning_viewed) {
-      penalty += 20;
-    }
+    const postPenaltyScore = Math.max(0, rawScore - totalPenalty);
+    const questionMark = qa.mark || 0;
+    const weightedMark = (postPenaltyScore / 100) * questionMark;
 
-    // 3. Study Material Download Penalty (-20 if downloaded)
-    if (qa.study_material_downloaded) {
-      penalty += 20;
-    }
-
-    const postPenaltyScore = Math.max(0, qScore - penalty); // Floor at 0
+    totalWeightedMarks += weightedMark;
 
     // Add to breakdown
     aiScoreBreakdown.questions.push({
       questionId: qa.question_id,
-      rawScore: qScore,
+      rawScore,
       penalties: {
-        hints: hints * 10,
-        microLearning: qa.micro_learning_viewed ? 20 : 0,
-        studyMaterial: qa.study_material_downloaded ? 20 : 0,
-        totalPenalty: penalty,
+        hints: baseHintPenalty,
+        microLearning: baseMicroPenalty,
+        studyMaterial: baseStudyPenalty,
+        totalPenalty,
       },
+      difficultyMultiplier: diffMultiplier,
       finalQuestionScore: postPenaltyScore,
+      weightedMark,
       isConsideredCorrect: isQuestionCorrect,
     });
+  }
 
-    totalWeightedScore += postPenaltyScore;
-    return sum + hints;
-  }, 0);
+  aiScoreBreakdown.totalWeightedMarks = totalWeightedMarks;
 
-  // Calculate Learning Engagement Rate (Questions with hints OR micro-learning / Total Answered)
-  const engagedQuestionsCount = qAttempts.filter(
-    (qa) => (qa.hints_used || 0) > 0 || qa.micro_learning_viewed,
-  ).length;
-  const learningEngagementRate =
-    qAttempts.length > 0
-      ? Math.round((engagedQuestionsCount / qAttempts.length) * 100)
-      : 0;
-
-  // --- NEW BEHAVIORAL METRICS ---
-
-  // 1. Average Time Per Question
-  const totalTime = qAttempts.reduce(
-    (sum, qa) => sum + (qa.time_taken_seconds || 0),
-    0,
+  // 3. Final Score Calculation
+  let finalScoreCalculated = Math.round(
+    (totalWeightedMarks / safeTotalMarks) * 100,
   );
-  const averageTimePerQuestion =
-    qAttempts.length > 0 ? Math.round(totalTime / qAttempts.length) : 0;
-
-  // 2. First Attempt Success Rate (Mastery)
-  const firstAttemptCorrectCount = qAttempts.filter(
-    (qa) => qa.is_correct && qa.answered_on_first_attempt,
-  ).length;
-  const firstAttemptSuccessRate =
-    qAttempts.length > 0
-      ? Math.round((firstAttemptCorrectCount / qAttempts.length) * 100)
-      : 0;
-
-  // 3. Hint Dependency Rate (Of the correct answers, how many needed hints?)
-  // We use our newly calculated average score for "is_correct" equivalence (qScore >= 60)
-  const correctWithHintsCount = qAttempts.filter((qa) => {
-    let qScore = 0;
-    if (
-      qa.attempt_history &&
-      Array.isArray(qa.attempt_history) &&
-      qa.attempt_history.length > 0
-    ) {
-      let totalAiScore = 0;
-      let validAttemptCount = 0;
-      for (const attempt of qa.attempt_history) {
-        if (
-          typeof attempt === "object" &&
-          attempt !== null &&
-          "aiScore" in attempt &&
-          typeof attempt.aiScore === "number"
-        ) {
-          totalAiScore += attempt.aiScore;
-          validAttemptCount++;
-        }
-      }
-      if (validAttemptCount > 0)
-        qScore = Math.round(totalAiScore / validAttemptCount);
-      else qScore = qa.is_correct ? qa.ai_score || 100 : qa.ai_score || 0;
-    } else {
-      qScore = qa.is_correct ? qa.ai_score || 100 : qa.ai_score || 0;
-    }
-    return qScore >= 60 && (qa.hints_used || 0) > 0;
-  }).length;
-  const correctTotal = correctCount; // Using the recalculated correct count
-  const hintDependencyRate =
-    correctTotal > 0
-      ? Math.round((correctWithHintsCount / correctTotal) * 100)
-      : 0;
-
-  // 4. Persistence Score (Of the questions that had multiple attempts, how many were eventually correct?)
-  const multiAttemptQuestions = qAttempts.filter(
-    (qa) => (qa.attempts_count || 1) > 1,
-  );
-
-  const persistedCorrectCount = multiAttemptQuestions.filter((qa) => {
-    let qScore = 0;
-    if (
-      qa.attempt_history &&
-      Array.isArray(qa.attempt_history) &&
-      qa.attempt_history.length > 0
-    ) {
-      let totalAiScore = 0;
-      let validAttemptCount = 0;
-      for (const attempt of qa.attempt_history) {
-        if (
-          typeof attempt === "object" &&
-          attempt !== null &&
-          "aiScore" in attempt &&
-          typeof attempt.aiScore === "number"
-        ) {
-          totalAiScore += attempt.aiScore;
-          validAttemptCount++;
-        }
-      }
-      if (validAttemptCount > 0)
-        qScore = Math.round(totalAiScore / validAttemptCount);
-      else qScore = qa.is_correct ? qa.ai_score || 100 : qa.ai_score || 0;
-    } else {
-      qScore = qa.is_correct ? qa.ai_score || 100 : qa.ai_score || 0;
-    }
-    return qScore >= 60;
-  }).length;
-
-  const persistenceScore =
-    multiAttemptQuestions.length > 0
-      ? Math.round((persistedCorrectCount / multiAttemptQuestions.length) * 100)
-      : 100; // Default to 100 if no struggle needed
-
-  // 3. Calculate Authoritative Score
-  // Average of all question scores
-  // If fewer questions answered than total, those count as 0.
-  let finalScore = Math.round(totalWeightedScore / safeTotal);
 
   // --- Time Penalty Logic ---
-  const testDurationMinutes = testData.duration || 0;
-  let appliedTimePenalty = 0;
-  if (testDurationMinutes > 0) {
-    const timeTakenMinutes = totalTime / 60;
-    const extraMinutes = Math.floor(timeTakenMinutes - testDurationMinutes);
-    if (extraMinutes > 0) {
-      // 1 point per extra minute
-      let timePenalty = extraMinutes * 1;
-      // Extra 10 points penalty if more than 5 minutes over time
-      if (extraMinutes > 5) {
-        timePenalty += 10;
-      }
-      appliedTimePenalty = timePenalty;
-      finalScore = Math.max(0, finalScore - timePenalty);
+  const testDurationMinutesLimit = testData.duration || 0;
+  let appliedTimePenaltyScore = 0;
+  if (testDurationMinutesLimit > 0) {
+    const timeTakenMinutesVal = totalTimeTaken / 60;
+    const extraMinutesCount = Math.floor(
+      timeTakenMinutesVal - testDurationMinutesLimit,
+    );
+    if (extraMinutesCount > 0) {
+      let timePenaltyVal = extraMinutesCount * 1;
+      if (extraMinutesCount > 5) timePenaltyVal += 10;
+      appliedTimePenaltyScore = timePenaltyVal;
+      finalScoreCalculated = Math.max(0, finalScoreCalculated - timePenaltyVal);
     }
   }
 
-  // Update breakdown with final totals
-  aiScoreBreakdown.timePenalty = appliedTimePenalty;
-  aiScoreBreakdown.finalScore = finalScore;
+  aiScoreBreakdown.timePenalty = appliedTimePenaltyScore;
+  aiScoreBreakdown.finalScore = finalScoreCalculated;
 
-  // Mastery Check: Score > 90% AND First Attempt Rate > 80%
-  const masteryAchieved = finalScore >= 90 && firstAttemptSuccessRate >= 80;
+  // --- BEHAVIORAL METRICS ---
+  const engagedQuestionsCountVal = qAttempts.filter(
+    (qa) => (qa.hints_used || 0) > 0 || qa.micro_learning_viewed,
+  ).length;
+  const learningEngagementRateVal =
+    qAttempts.length > 0
+      ? Math.round((engagedQuestionsCountVal / qAttempts.length) * 100)
+      : 0;
 
-  // 5. Basic Score (Raw Percentage)
-  const basicScore = Math.round(((correctCount || 0) / safeTotal) * 100);
+  const averageTimePerQuestionVal =
+    qAttempts.length > 0 ? Math.round(totalTimeTaken / qAttempts.length) : 0;
 
-  // 6. Confidence Indicator (Percentage of correct answers answered quickly, e.g., < 30s)
-  // Threshold can be adjusted or made dynamic based on question difficulty in future
-  const fastCorrectCount = qAttempts.filter((qa) => {
-    let qScore = 0;
-    if (
-      qa.attempt_history &&
-      Array.isArray(qa.attempt_history) &&
-      qa.attempt_history.length > 0
-    ) {
-      let totalAiScore = 0;
-      let validAttemptCount = 0;
-      for (const attempt of qa.attempt_history) {
-        if (
-          typeof attempt === "object" &&
-          attempt !== null &&
-          "aiScore" in attempt &&
-          typeof attempt.aiScore === "number"
-        ) {
-          totalAiScore += attempt.aiScore;
-          validAttemptCount++;
-        }
-      }
-      if (validAttemptCount > 0)
-        qScore = Math.round(totalAiScore / validAttemptCount);
-      else qScore = qa.is_correct ? qa.ai_score || 100 : qa.ai_score || 0;
-    } else {
-      qScore = qa.is_correct ? qa.ai_score || 100 : qa.ai_score || 0;
-    }
-    return qScore >= 60 && (qa.time_taken_seconds || 0) < 30;
+  const firstAttemptCorrectCountVal = qAttempts.filter(
+    (qa) => qa.is_correct && qa.answered_on_first_attempt,
+  ).length;
+  const firstAttemptSuccessRateVal =
+    qAttempts.length > 0
+      ? Math.round((firstAttemptCorrectCountVal / qAttempts.length) * 100)
+      : 0;
+
+  // Persistence Score
+  const multiAttemptQuestionsVal = qAttempts.filter(
+    (qa) => (qa.attempts_count || 1) > 1,
+  );
+  const persistedCorrectCountVal = multiAttemptQuestionsVal.filter((qa) => {
+    const score = getAverageAiScore(qa);
+    return score >= 60;
   }).length;
-  const confidenceIndicator =
-    correctTotal > 0 ? Math.round((fastCorrectCount / correctTotal) * 100) : 0;
+  const persistenceScoreVal =
+    multiAttemptQuestionsVal.length > 0
+      ? Math.round(
+          (persistedCorrectCountVal / multiAttemptQuestionsVal.length) * 100,
+        )
+      : 100;
 
-  // 7. Questions Requiring Study (Count of questions with low weighted score, e.g., < 60)
-  // We already recalculated our weighted score based on the average.
-  const questionsRequiringStudy = qAttempts.filter((qa) => {
-    let qScore = 0;
-    if (
-      qa.attempt_history &&
-      Array.isArray(qa.attempt_history) &&
-      qa.attempt_history.length > 0
-    ) {
-      let totalAiScore = 0;
-      let validAttemptCount = 0;
-      for (const attempt of qa.attempt_history) {
-        if (
-          typeof attempt === "object" &&
-          attempt !== null &&
-          "aiScore" in attempt &&
-          typeof attempt.aiScore === "number"
-        ) {
-          totalAiScore += attempt.aiScore;
-          validAttemptCount++;
-        }
-      }
-      if (validAttemptCount > 0)
-        qScore = Math.round(totalAiScore / validAttemptCount);
-      else qScore = qa.is_correct ? qa.ai_score || 100 : qa.ai_score || 0;
-    } else {
-      qScore = qa.is_correct ? qa.ai_score || 100 : qa.ai_score || 0;
-    }
+  const masteryAchievedVal =
+    finalScoreCalculated >= 90 && firstAttemptSuccessRateVal >= 80;
 
-    // Apply penalties to this raw score to see if it requires study
-    const penalty = (qa.hints_used || 0) * 10;
-    qScore = Math.max(0, qScore - penalty);
-    return qScore < 60; // Threshold for "needs study"
+  // Basic Score (Authoritative Raw weighted % without time penalty)
+  const basicScoreVal = Math.round((totalWeightedMarks / safeTotalMarks) * 100);
+
+  // Confidence Indicator
+  const fastCorrectCountVal = qAttempts.filter((qa) => {
+    const score = getAverageAiScore(qa);
+    return score >= 60 && (qa.time_taken_seconds || 0) < 30;
   }).length;
+  const confidenceIndicatorVal =
+    correctCount > 0
+      ? Math.round((fastCorrectCountVal / correctCount) * 100)
+      : 0;
 
-  // 4. Prepare updates (Overwriting frontend score with backend authority)
+  const questionsRequiringStudyCountVal = aiScoreBreakdown.questions.filter(
+    (q) => q.finalQuestionScore < 60,
+  ).length;
+
+  const hintDependencyRateVal =
+    correctCount > 0
+      ? Math.round(
+          (qAttempts.filter(
+            (qa) =>
+              (Number(qa.ai_score) || 0) >= 60 && (qa.hints_used || 0) > 0,
+          ).length /
+            correctCount) *
+            100,
+        )
+      : 0;
+
+  // 4. Update Database
   const updates: TablesUpdate<"test_attempts"> = {
     status: "completed",
     completed_at: new Date().toISOString(),
-    score: finalScore,
-    correct_answers: correctCount || 0,
-    total_questions: totalQuestions,
-    hints_used: totalHintsUsed, // Trust DB aggregation over frontend
-    learning_engagement_rate: learningEngagementRate,
-    average_time_per_question: averageTimePerQuestion,
-    first_attempt_success_rate: firstAttemptSuccessRate,
-    hint_dependency_rate: hintDependencyRate,
-    persistence_score: persistenceScore,
-    mastery_achieved: masteryAchieved,
-    basic_score: basicScore,
-    confidence_indicator: confidenceIndicator,
-    questions_requiring_study: questionsRequiringStudy,
-    ai_score_breakdown: aiScoreBreakdown as unknown as Json, // Save the breakdown payload
+    score: finalScoreCalculated,
+    correct_answers: correctCount,
+    total_questions: testData.question_count,
+    hints_used: totalHintsUsedCount,
+    learning_engagement_rate: learningEngagementRateVal,
+    average_time_per_question: averageTimePerQuestionVal,
+    first_attempt_success_rate: firstAttemptSuccessRateVal,
+    persistence_score: persistenceScoreVal,
+    mastery_achieved: masteryAchievedVal,
+    basic_score: basicScoreVal,
+    confidence_indicator: confidenceIndicatorVal,
+    questions_requiring_study: questionsRequiringStudyCountVal,
+    hint_dependency_rate: hintDependencyRateVal,
+    ai_score_breakdown: aiScoreBreakdown as unknown as Json,
   };
 
-  // Preserve qualitative/optional metrics if passed from frontend
   if (metrics) {
     if (metrics.timeTakenSeconds !== undefined)
       updates.time_taken_seconds = metrics.timeTakenSeconds;
-    if (metrics.hintsUsed !== undefined) updates.hints_used = metrics.hintsUsed;
-
-    // AI & Advanced Metrics
-    if (metrics.aiScore !== undefined) updates.ai_score = metrics.aiScore;
-    if (metrics.aiScoreBreakdown !== undefined)
-      updates.ai_score_breakdown = metrics.aiScoreBreakdown;
-    if (metrics.learningEngagementRate !== undefined)
-      updates.learning_engagement_rate = metrics.learningEngagementRate;
-    if (metrics.averageTimePerQuestion !== undefined)
-      updates.average_time_per_question = metrics.averageTimePerQuestion;
-    if (metrics.firstAttemptSuccessRate !== undefined)
-      updates.first_attempt_success_rate = metrics.firstAttemptSuccessRate;
-    if (metrics.hintDependencyRate !== undefined)
-      updates.hint_dependency_rate = metrics.hintDependencyRate;
-    if (metrics.persistenceScore !== undefined)
-      updates.persistence_score = metrics.persistenceScore;
-    if (metrics.confidenceIndicator !== undefined)
-      updates.confidence_indicator = metrics.confidenceIndicator;
-    if (metrics.forcedStudyBreaks !== undefined)
-      updates.forced_study_breaks = metrics.forcedStudyBreaks;
-    if (metrics.masteryAchieved !== undefined)
-      updates.mastery_achieved = metrics.masteryAchieved;
-    if (metrics.questionsRequiringStudy !== undefined)
-      updates.questions_requiring_study = metrics.questionsRequiringStudy;
+    if (metrics.score !== undefined && !updates.score)
+      updates.score = metrics.score;
   }
 
-  // 5. Commit Update
   const { data: attempt, error } = await supabase
     .from("test_attempts")
     .update(updates)
@@ -1754,14 +1647,8 @@ export async function completeAttempt(
 
   if (error) throw error;
 
-  // 6. Trigger Performance Metrics Calculation
-  try {
-    await calculateAndSaveMetrics(attemptData.student_id, attemptData.test_id);
-  } catch (metricError) {
-    console.error("Failed to update performance metrics:", metricError);
-  }
+  await calculateAndSaveMetrics(attemptData.student_id, attemptData.test_id);
 
-  // 7. Fetch full test details for return
   const { data: fullTest } = await supabase
     .from("tests")
     .select("*")
@@ -1798,7 +1685,7 @@ export async function completeAttempt(
     },
     questionResults: [],
     test: fullTest
-      ? {
+      ? ({
           id: fullTest.id,
           title: fullTest.title,
           description: fullTest.description,
@@ -1809,20 +1696,9 @@ export async function completeAttempt(
           createdBy: fullTest.created_by,
           lessonId: fullTest.lesson_id || undefined,
           questionCount: fullTest.question_count,
-          questions: [], // Questions not needed or not fetched here for now
-        }
-      : {
-          id: "unknown",
-          title: "Unknown Test",
-          description: "",
-          status: "draft",
-          scheduledDate: new Date(),
-          duration: 0,
-          createdAt: new Date(),
-          createdBy: "",
-          questionCount: 0,
           questions: [],
-        },
+        } as TestWithQuestions)
+      : undefined,
   };
 }
 

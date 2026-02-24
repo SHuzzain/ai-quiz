@@ -118,6 +118,11 @@ export function TestResultsPage() {
             <p className="text-6xl md:text-8xl font-bold bg-gradient-to-r from-kid-purple via-kid-pink to-kid-orange bg-clip-text text-transparent">
               {score}%
             </p>
+            {attempt?.totalMark ? (
+              <p className="text-lg font-medium text-muted-foreground mt-2">
+                {Math.round((score / 100) * attempt.totalMark)} / {attempt.totalMark} Marks
+              </p>
+            ) : null}
           </div>
 
           {/* Stars */}
