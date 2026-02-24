@@ -64,22 +64,22 @@ export default function AdminQuestionBankListPage() {
                 </div>
 
                 {/* Filters */}
-                <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-card p-4 rounded-xl border border-border shadow-sm">
-                    <div className="flex items-center gap-2 w-full sm:max-w-sm">
-                        <div className="relative flex-1">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                            <Input
-                                placeholder="Search sets or lessons..."
-                                className="pl-10"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                            />
-                        </div>
-                        <Button variant="outline" size="icon">
-                            <Filter className="w-4 h-4" />
-                        </Button>
+
+                <div className="flex items-center gap-2 w-full">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Search sets or lessons..."
+                            className="pl-10"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
                     </div>
+                    <Button variant="outline" size="icon">
+                        <Filter className="w-4 h-4" />
+                    </Button>
                 </div>
+
 
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
