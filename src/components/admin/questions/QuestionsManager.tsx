@@ -61,7 +61,7 @@ export function QuestionsManager({
                     <div className="space-y-6">
                         {questions.map((q, idx) => (
                             <QuestionEditorCard
-                                key={q.id}
+                                key={idx}
                                 idx={idx}
                                 data={q}
                                 onUpdate={onUpdate}
