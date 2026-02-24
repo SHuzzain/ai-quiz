@@ -34,6 +34,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { MultiSelect } from '@/components/ui/multi-select';
 import { toast } from 'sonner';
+import { TOPIC, CONCEPT } from '@/constant';
 import { useLessons, useAnalyzeDocument, useGenerateQuestionVariants } from '@/hooks/useApi';
 import { extractTextFromUrl } from '@/utils/fileParser';
 import { DocumentAnalysis, QuestionBankItem, VariantConfig } from '@/types';
@@ -102,8 +103,8 @@ export function AIQuestionGenerator({
             const analysis = await analyzeDocument.mutateAsync({ content: fullText });
             setAnalysisResult(analysis);
             setConfigurations([{
-                topics: analysis.topics,
-                concepts: analysis.concepts || [],
+                topics: [],
+                concepts: [],
                 difficulty: 1,
                 marks: 1,
                 variantCount: 5
@@ -243,7 +244,7 @@ export function AIQuestionGenerator({
                                                         <div className="space-y-2">
                                                             <Label className="text-xs font-semibold">Select Topics</Label>
                                                             <MultiSelect
-                                                                options={analysisResult.topics.map(t => ({ label: t, value: t }))}
+                                                                options={TOPIC.map(t => ({ label: t, value: t }))}
                                                                 selected={config.topics}
                                                                 onChange={(vals) => updateConfiguration(idx, { topics: vals })}
                                                                 placeholder="Choose topics..."
@@ -253,7 +254,7 @@ export function AIQuestionGenerator({
                                                         <div className="space-y-2">
                                                             <Label className="text-xs font-semibold">Select Concepts</Label>
                                                             <MultiSelect
-                                                                options={(analysisResult.concepts || []).map(c => ({ label: c, value: c }))}
+                                                                options={CONCEPT.map(c => ({ label: c, value: c }))}
                                                                 selected={config.concepts}
                                                                 onChange={(vals) => updateConfiguration(idx, { concepts: vals })}
                                                                 placeholder="Choose concepts..."

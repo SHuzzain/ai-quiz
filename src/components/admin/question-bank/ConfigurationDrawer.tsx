@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Wand2, Trash2, PlusCircle, Loader2 } from 'lucide-react';
 import { Controller, FieldArrayWithId, UseFieldArrayAppend, useFormContext } from 'react-hook-form';
+import { TOPIC, CONCEPT } from '@/constant';
 import { VariantGenerationForm } from '@/schemas/questionBank';
 import { DocumentAnalysis } from '@/types';
 
@@ -78,7 +79,7 @@ export function ConfigurationDrawer({
                                         <div className="space-y-2">
                                             <Label>Topics (extracted from doc)</Label>
                                             <MultiSelect
-                                                options={analysisResult?.topics?.map(t => ({ label: t, value: t })) || []}
+                                                options={TOPIC.map(t => ({ label: t, value: t }))}
                                                 selected={watch(`configurations.${index}.topics`) || []}
                                                 onChange={vals => setValue(`configurations.${index}.topics`, vals)}
                                                 placeholder="Select topics..."
@@ -88,7 +89,7 @@ export function ConfigurationDrawer({
                                         <div className="space-y-2">
                                             <Label>Concepts (extracted from doc)</Label>
                                             <MultiSelect
-                                                options={analysisResult?.concepts?.map(c => ({ label: c, value: c })) || []}
+                                                options={CONCEPT.map(c => ({ label: c, value: c }))}
                                                 selected={watch(`configurations.${index}.concepts`) || []}
                                                 onChange={vals => setValue(`configurations.${index}.concepts`, vals)}
                                                 placeholder="Select concepts..."

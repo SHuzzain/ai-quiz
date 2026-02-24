@@ -338,6 +338,7 @@ export async function getTestWithQuestions(
     createdBy: test.created_by,
     lessonId: test.lesson_id || undefined,
     questionCount: test.question_count,
+    totalMark: test.total_mark || 0,
     questions: questions.map((q) => ({
       id: q.id,
       testId: q.test_id,
@@ -367,6 +368,7 @@ export async function createTest(data: {
   duration: number;
   lessonId?: string;
   status?: Test["status"];
+  totalMark?: number;
 }): Promise<Test> {
   const {
     data: { user },
@@ -384,6 +386,7 @@ export async function createTest(data: {
       created_by: user.id,
       status: data.status || "draft",
       question_count: 0,
+      total_mark: data.totalMark || 0,
     })
     .select()
     .single();
@@ -401,6 +404,7 @@ export async function createTest(data: {
     createdBy: newTest.created_by,
     lessonId: newTest.lesson_id || undefined,
     questionCount: newTest.question_count,
+    totalMark: newTest.total_mark || 0,
   };
 }
 
@@ -420,6 +424,7 @@ export async function updateTest(
   if (data.duration) updates.duration = data.duration;
   if (data.status) updates.status = data.status;
   if (data.lessonId) updates.lesson_id = data.lessonId;
+  if (data.totalMark !== undefined) updates.total_mark = data.totalMark;
 
   const { data: updatedTest, error } = await supabase
     .from("tests")
@@ -441,6 +446,7 @@ export async function updateTest(
     createdBy: updatedTest.created_by,
     lessonId: updatedTest.lesson_id || undefined,
     questionCount: updatedTest.question_count,
+    totalMark: updatedTest.total_mark || 0,
   };
 }
 

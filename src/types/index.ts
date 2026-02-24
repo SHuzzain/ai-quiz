@@ -52,6 +52,7 @@ export interface Test {
   questionCount: number;
   duration: number; // in minutes
   lessonId?: string;
+  totalMark?: number;
   updatedAt?: Date;
 }
 
