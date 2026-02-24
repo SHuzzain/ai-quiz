@@ -179,7 +179,7 @@ export function AIQuestionGenerator({
             <Button
                 onClick={handleAnalyze}
                 disabled={isAnalyzing || !lessonId}
-                className="bg-indigo-600 hover:bg-indigo-700 h-10 px-6 font-bold shadow-md shadow-indigo-100 hover:shadow-indigo-200 transition-all rounded-full"
+                className="bg-primary hover:bg-primary/90 h-10 px-6 font-bold shadow-md shadow-indigo-100 hover:shadow-indigo-200 transition-all rounded-full"
             >
                 {isAnalyzing ? (
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -195,7 +195,7 @@ export function AIQuestionGenerator({
                     <div className="mx-auto w-full max-w-4xl max-h-[90vh] flex flex-col">
                         <DrawerHeader>
                             <DrawerTitle className="flex items-center gap-2 text-2xl">
-                                <Sparkles className="w-6 h-6 text-indigo-500" />
+                                <Sparkles className="w-6 h-6 text-primary" />
                                 AI Question Configuration
                             </DrawerTitle>
                             <DrawerDescription>
@@ -212,7 +212,7 @@ export function AIQuestionGenerator({
                                             <Label className="text-xs uppercase tracking-wider text-muted-foreground font-bold">Content Summary</Label>
                                             <p className="text-sm leading-relaxed">{analysisResult.summary}</p>
                                             <div className="pt-2 flex flex-wrap gap-2">
-                                                <Badge variant="outline" className="bg-white border-indigo-100 text-indigo-600">{analysisResult.difficulty}</Badge>
+                                                <Badge variant="outline" className="bg-white border-primary/20 text-primary">{analysisResult.difficulty}</Badge>
                                             </div>
                                         </div>
                                     </div>
@@ -221,14 +221,14 @@ export function AIQuestionGenerator({
                                     <div className="md:col-span-2 space-y-4">
                                         <div className="flex items-center justify-between mb-2">
                                             <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Generation Variants</Label>
-                                            <Button variant="outline" size="sm" onClick={addConfiguration} className="h-7 text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50">
+                                            <Button variant="outline" size="sm" onClick={addConfiguration} className="h-7 text-xs border-primary/20 text-indigo-700 hover:bg-primary/10">
                                                 <Plus className="w-3 h-3 mr-1" /> Add Variant
                                             </Button>
                                         </div>
 
                                         <div className="space-y-4">
                                             {configurations.map((config, idx) => (
-                                                <div key={idx} className="p-5 border-2 border-indigo-50 rounded-2xl bg-white space-y-4 relative shadow-sm hover:border-indigo-100 transition-colors">
+                                                <div key={idx} className="p-5 border-2 border-indigo-50 rounded-2xl bg-white space-y-4 relative shadow-sm hover:border-primary/20 transition-colors">
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
@@ -311,7 +311,7 @@ export function AIQuestionGenerator({
                         <DrawerFooter className="border-t p-4 flex-row gap-4">
                             <Button
                                 size="lg"
-                                className="flex-1 bg-indigo-600 hover:bg-indigo-700 h-12 text-lg font-bold shadow-lg shadow-indigo-100"
+                                className="flex-1 bg-primary hover:bg-primary/90 h-12 text-lg font-bold shadow-lg shadow-indigo-100"
                                 onClick={handleGenerateQuestions}
                                 disabled={isGenerating}
                             >

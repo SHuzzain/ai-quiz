@@ -66,8 +66,8 @@ export default function AdminQuestionBankCreatePage() {
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
                         <div className="flex items-center gap-3 mb-1">
-                            <div className="p-2 bg-indigo-100 rounded-lg">
-                                <Database className="w-6 h-6 text-indigo-600" />
+                            <div className="p-2 bg-primary/100 rounded-lg">
+                                <Database className="w-6 h-6 text-primary" />
                             </div>
                             <h1 className="text-3xl font-bold tracking-tight">Generate Questions</h1>
                         </div>
@@ -136,12 +136,12 @@ export default function AdminQuestionBankCreatePage() {
 
                             {/* Right: Preview & Actions */}
                             <div className="md:col-span-2 space-y-6">
-                                <Card className="border-indigo-100 shadow-sm overflow-hidden border-none shadow-none bg-transparent">
+                                <Card className="border-primary/20 shadow-sm overflow-hidden border-none shadow-none bg-transparent">
                                     <CardHeader className="bg-transparent px-0 py-4 pt-0">
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-2">
-                                                <Wand2 className="w-5 h-5 text-indigo-600" />
-                                                <CardTitle className="text-lg text-indigo-900">
+                                                <Wand2 className="w-5 h-5 text-primary" />
+                                                <CardTitle className="text-lg text-primary">
                                                     Generated Preview
                                                 </CardTitle>
                                             </div>

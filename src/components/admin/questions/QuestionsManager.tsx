@@ -40,7 +40,7 @@ export function QuestionsManager({
                     variant="outline"
                     size="sm"
                     onClick={onAdd}
-                    className="hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-sm"
+                    className="hover:bg-primary/10 hover:text-primary hover:border-primary/20 transition-all shadow-sm"
                 >
                     <Plus className="w-4 h-4 mr-2" />
                     Add Manual Question

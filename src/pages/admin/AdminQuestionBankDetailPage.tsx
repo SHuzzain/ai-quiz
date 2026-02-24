@@ -227,7 +227,7 @@ export default function AdminQuestionBankDetailPage() {
         return (
             <AdminLayout>
                 <div className="flex items-center justify-center min-h-[60vh]">
-                    <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
                 </div>
             </AdminLayout>
         );
@@ -277,7 +277,7 @@ export default function AdminQuestionBankDetailPage() {
                         <Button
                             onClick={form.handleSubmit(handleSave)}
                             disabled={updateMutation.isPending}
-                            className="bg-indigo-600 hover:bg-indigo-700"
+                            className="bg-primary hover:bg-primary/90"
                         >
                             {updateMutation.isPending ? (
                                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />

@@ -51,7 +51,7 @@ export function QuestionEditorCard({
         <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="p-6 border rounded-xl bg-card space-y-4 relative group hover:border-indigo-200 transition-colors shadow-sm"
+            className="p-6 border rounded-xl bg-card space-y-4 relative group hover:border-primary/20 transition-colors shadow-sm"
         >
             <div className="flex justify-between items-start">
                 <div className="flex items-center gap-3">
@@ -64,7 +64,7 @@ export function QuestionEditorCard({
                     <Button
                         variant="ghost"
                         size="sm"
-                        className="h-8 text-xs text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
+                        className="h-8 text-xs text-primary hover:text-indigo-700 hover:bg-primary/10"
                         onClick={() => onEvaluate(data.id)}
                         disabled={isEvaluating}
                     >
