@@ -151,7 +151,7 @@ export default function AdminQuestionBankCreatePage() {
                                                         onClick={handleBatchSave}
                                                         disabled={saveItemsPending}
                                                         size="sm"
-                                                        className="bg-green-600 hover:bg-green-700 shadow-sm"
+                                                        className="bg-primary shadow-sm"
                                                     >
                                                         {saveItemsPending ? (
                                                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
