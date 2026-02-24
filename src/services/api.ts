@@ -24,6 +24,7 @@ import {
   ExtractedQuestion,
   FileUpload,
   QuestionBankItem,
+  QuestionBankSet,
 } from "@/types";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -345,6 +346,13 @@ export async function getTestWithQuestions(
       hints: q.hints,
       microLearning: q.micro_learning,
       order: q.order,
+      concept: q.concept,
+      topic: q.topic,
+      difficulty: q.difficulty,
+      mark: q.mark,
+      working: q.working,
+      difficultyReason: q.difficultyReason,
+      maxAttemptsBeforeStudy: q.max_attempts_before_study,
     })),
   };
 }
@@ -543,6 +551,13 @@ export async function updateQuestion(
     hints: updatedQuestion.hints,
     microLearning: updatedQuestion.micro_learning,
     order: updatedQuestion.order,
+    concept: updatedQuestion.concept,
+    topic: updatedQuestion.topic,
+    difficulty: updatedQuestion.difficulty,
+    mark: updatedQuestion.mark,
+    working: updatedQuestion.working,
+    difficultyReason: updatedQuestion.difficultyReason,
+    maxAttemptsBeforeStudy: updatedQuestion.max_attempts_before_study,
   };
 }
 
@@ -2612,20 +2627,27 @@ export interface RegenerateQuestionPayload {
   currentQuestion: {
     title?: string;
     answer?: string;
-    topics?: string[];
-    concepts?: string[];
+    topic?: string;
+    concept?: string;
     difficulty?: number;
     marks?: number;
     working?: string;
+    isDirtyFields: Record<string, boolean>;
   };
 }
 
 /**
- * Save items to the Question Bank
+ * Save a set of questions to the bank
  */
-export async function saveQuestionBankItems(
-  items: Partial<QuestionBankItem>[],
-): Promise<QuestionBankItem[]> {
+export async function saveQuestionBankSet(data: {
+  title: string;
+  lessonId: string;
+  questions: QuestionBankItem[];
+  configurations: Pick<
+    VariantConfigForm,
+    "topics" | "concepts" | "difficulty" | "marks" | "variantCount"
+  >[];
+}) {
   const userResponse = await supabase.auth.getUser();
   const user = userResponse.data.user;
 
@@ -2633,39 +2655,132 @@ export async function saveQuestionBankItems(
     throw new Error("You must be logged in to save questions to the bank");
   }
 
-  const payloadToInsert = items.map((i) => ({
-    title: i.title,
-    answer: i.answer,
-    topics: i.topics || [],
-    concepts: i.concepts || [],
-    difficulty: i.difficulty || 1,
-    marks: i.marks || 1,
-    working: i.working,
-    lesson_id: i.lessonId,
-    created_by: user.id,
-  }));
-
-  const { data, error } = await supabase
+  const { data: qSet, error } = await supabase
     .from("question_bank")
-    .insert(payloadToInsert)
-    .select();
+    .insert({
+      title: data.title,
+      lesson_id: data.lessonId,
+      questions: data.questions as unknown as Json,
+      configurations: data.configurations as unknown as Pick<
+        VariantConfigForm,
+        "topics" | "concepts" | "difficulty" | "marks" | "variantCount"
+      >[],
+      created_by: user.id,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  return {
+    id: qSet.id,
+    title: qSet.title,
+    lessonId: qSet.lesson_id,
+    questions: qSet.questions as unknown as QuestionBankItem[],
+    configurations: qSet.configurations as unknown as VariantConfigForm[],
+    createdBy: qSet.created_by,
+    createdAt: new Date(qSet.created_at || new Date()),
+    updatedAt: new Date(qSet.updated_at || new Date()),
+  };
+}
+
+/**
+ * Get item sets from the Question Bank
+ */
+export async function getQuestionBankSets(filters?: {
+  lessonId?: string;
+  search?: string;
+}) {
+  let query = supabase.from("question_bank").select("*");
+
+  if (filters?.lessonId) {
+    query = query.eq("lesson_id", filters.lessonId);
+  }
+
+  if (filters?.search) {
+    query = query.ilike("title", `%${filters.search}%`);
+  }
+
+  const { data, error } = await query.order("created_at", { ascending: false });
 
   if (error) throw error;
 
   return data.map((q) => ({
     id: q.id,
     title: q.title,
-    answer: q.answer,
-    topics: q.topics || [],
-    concepts: q.concepts || [],
-    difficulty: q.difficulty,
-    marks: q.marks,
-    working: q.working || undefined,
-    lessonId: q.lesson_id || undefined,
+    lessonId: q.lesson_id,
+    questions: q.questions as unknown as QuestionBankItem[],
+    configurations: q.configurations as unknown as VariantConfigForm[],
     createdBy: q.created_by,
-    createdAt: new Date(q.created_at || new Date()),
-    updatedAt: new Date(q.updated_at || new Date()),
+    createdAt: new Date(q.created_at),
+    updatedAt: new Date(q.updated_at),
   }));
+}
+
+/**
+ * Get a single question bank set by ID
+ */
+export async function getQuestionBankSet(id: string) {
+  const { data: qSet, error } = await supabase
+    .from("question_bank")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (error) throw error;
+
+  return {
+    id: qSet.id,
+    title: qSet.title,
+    lessonId: qSet.lesson_id,
+    questions: qSet.questions as unknown as QuestionBankItem[],
+    configurations: qSet.configurations as unknown as VariantConfigForm[],
+    createdBy: qSet.created_by,
+    createdAt: new Date(qSet.created_at || new Date()),
+    updatedAt: new Date(qSet.updated_at || new Date()),
+  };
+}
+
+/**
+ * Update a specific question bank set
+ */
+export async function updateQuestionBankSet(
+  id: string,
+  updates: Partial<QuestionBankSet>,
+) {
+  const payload: TablesUpdate<"question_bank"> = {};
+  if (updates.title) payload.title = updates.title;
+  if (updates.lessonId !== undefined) payload.lesson_id = updates.lessonId;
+  if (updates.questions)
+    payload.questions = updates.questions as unknown as Json;
+
+  const { data: qSet, error } = await supabase
+    .from("question_bank")
+    .update(payload)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  return {
+    id: qSet.id,
+    title: qSet.title,
+    lessonId: qSet.lesson_id,
+    questions: qSet.questions as unknown as QuestionBankItem[],
+    configurations: qSet.configurations as unknown as VariantConfigForm[],
+    createdBy: qSet.created_by,
+    createdAt: new Date(qSet.created_at || new Date()),
+    updatedAt: new Date(qSet.updated_at || new Date()),
+  };
+}
+
+/**
+ * Delete a specific set from the Question Bank
+ */
+export async function deleteQuestionBankSet(id: string): Promise<void> {
+  const { error } = await supabase.from("question_bank").delete().eq("id", id);
+  if (error) throw error;
 }
 
 /**

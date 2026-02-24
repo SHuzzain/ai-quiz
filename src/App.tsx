@@ -5,7 +5,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 
-// Pages
+// Layouts and Shared
+import { ProfilePage } from "@/pages/shared/ProfilePage";
+import NotFound from "@/pages/NotFound";
+
+// Admin Pages
 import { LandingPage } from "@/pages/LandingPage";
 import { AuthPage } from "@/pages/AuthPage";
 import { AdminDashboard } from "@/pages/admin/AdminDashboard";
@@ -17,15 +21,18 @@ import { AdminLessonsPage } from "@/pages/admin/AdminLessonsPage";
 import { AdminAnalyticsPage } from "@/pages/admin/AdminAnalyticsPage";
 import { AdminTestsReportPage } from "@/pages/admin/AdminTestsReportPage";
 import { AdminTestAttemptDetail } from "@/pages/admin/AdminTestAttemptDetail";
-import { AdminQuestionBankPage } from "@/pages/admin/AdminQuestionBankPage";
 
+// Question Bank Pages
+import AdminQuestionBankListPage from "@/pages/admin/AdminQuestionBankListPage";
+import AdminQuestionBankCreatePage from "@/pages/admin/AdminQuestionBankCreatePage";
+import AdminQuestionBankDetailPage from "@/pages/admin/AdminQuestionBankDetailPage";
+
+// Student Pages
 import { StudentDashboard } from "@/pages/student/StudentDashboard";
 import { StudentTestsPage } from "@/pages/student/StudentTestsPage";
 import { StudentResultsListPage } from "@/pages/student/StudentResultsListPage";
 import { TestTakingPage } from "@/pages/student/TestTakingPage";
 import { TestResultsPage } from "@/pages/student/TestResultsPage";
-import { ProfilePage } from "@/pages/shared/ProfilePage";
-import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
@@ -52,10 +59,13 @@ const App = () => (
             <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
             <Route path="/admin/reports" element={<AdminTestsReportPage />} />
             <Route path="/admin/reports/:attemptId" element={<AdminTestAttemptDetail />} />
-            <Route path="/admin/question-bank" element={<AdminQuestionBankPage />} />
+
+            {/* Question Bank Routes */}
+            <Route path="/admin/questions" element={<AdminQuestionBankListPage />} />
+            <Route path="/admin/questions/create" element={<AdminQuestionBankCreatePage />} />
+            <Route path="/admin/questions/:id" element={<AdminQuestionBankDetailPage />} />
 
             <Route path="/admin/profile" element={<ProfilePage />} />
-
 
             {/* Student Routes */}
             <Route path="/student" element={<StudentDashboard />} />
@@ -64,7 +74,6 @@ const App = () => (
             <Route path="/student/test/:testId" element={<TestTakingPage />} />
             <Route path="/student/results/:attemptId" element={<TestResultsPage />} />
             <Route path="/student/profile" element={<ProfilePage />} />
-
 
             {/* Catch-all */}
             <Route path="*" element={<NotFound />} />

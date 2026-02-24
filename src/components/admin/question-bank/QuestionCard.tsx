@@ -23,14 +23,15 @@ interface QuestionCardProps {
 export function QuestionCard({
     idx,
     analysisResult,
-    evaluatingIndex,
     regeneratingIndex,
-    onEvaluate,
     onRegenerate
 }: QuestionCardProps) {
-    const { control, register, watch, setValue } = useFormContext<VariantGenerationForm>();
+    const { control, register, watch, setValue, formState } = useFormContext<VariantGenerationForm>();
     const q = watch(`generatedQuestions.${idx}`);
 
+    const isDirty = formState.dirtyFields.generatedQuestions?.[idx];
+
+    console.log({ q, isDirty });
     return (
         <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -45,10 +46,6 @@ export function QuestionCard({
                         <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Question Context</Label>
                         <Textarea
                             {...register(`generatedQuestions.${idx}.title`)}
-                            onChange={(e) => {
-                                setValue(`generatedQuestions.${idx}.title`, e.target.value);
-                                setValue(`generatedQuestions.${idx}.isDirty`, true);
-                            }}
                             className="font-medium resize-none min-h-[80px]"
                             placeholder="Question text"
                         />
@@ -60,10 +57,6 @@ export function QuestionCard({
                             <Label className="text-xs font-semibold uppercase tracking-wider">Correct Answer</Label>
                             <Input
                                 {...register(`generatedQuestions.${idx}.answer`)}
-                                onChange={(e) => {
-                                    setValue(`generatedQuestions.${idx}.answer`, e.target.value);
-                                    setValue(`generatedQuestions.${idx}.isDirty`, true);
-                                }}
                                 placeholder="Correct Answer"
                             />
                         </div>
@@ -72,10 +65,6 @@ export function QuestionCard({
                             <Input
                                 type="number"
                                 {...register(`generatedQuestions.${idx}.marks`, { valueAsNumber: true })}
-                                onChange={(e) => {
-                                    setValue(`generatedQuestions.${idx}.marks`, parseInt(e.target.value) || 0);
-                                    setValue(`generatedQuestions.${idx}.isDirty`, true);
-                                }}
                                 className="h-10"
                             />
                         </div>
@@ -85,52 +74,18 @@ export function QuestionCard({
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
                             <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Topic</Label>
-                            <Controller
-                                name={`generatedQuestions.${idx}.topics`}
-                                control={control}
-                                render={({ field }) => (
-                                    <Select
-                                        value={field.value?.[0] || ""}
-                                        onValueChange={val => {
-                                            field.onChange([val]);
-                                            setValue(`generatedQuestions.${idx}.isDirty`, true);
-                                        }}
-                                    >
-                                        <SelectTrigger className="h-10">
-                                            <SelectValue placeholder="Select topic" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {(analysisResult?.topics || field.value || []).map(t => (
-                                                <SelectItem key={t} value={t}>{t}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                )}
+                            <Input
+                                {...register(`generatedQuestions.${idx}.topic`)}
+                                className="h-10"
+                                placeholder="Topic"
                             />
                         </div>
                         <div className="space-y-1">
                             <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Concept</Label>
-                            <Controller
-                                name={`generatedQuestions.${idx}.concepts`}
-                                control={control}
-                                render={({ field }) => (
-                                    <Select
-                                        value={field.value?.[0] || ""}
-                                        onValueChange={val => {
-                                            field.onChange([val]);
-                                            setValue(`generatedQuestions.${idx}.isDirty`, true);
-                                        }}
-                                    >
-                                        <SelectTrigger className="h-10">
-                                            <SelectValue placeholder="Select concept" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {(analysisResult?.concepts || field.value || []).map(c => (
-                                                <SelectItem key={c} value={c}>{c}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                )}
+                            <Input
+                                {...register(`generatedQuestions.${idx}.concept`)}
+                                className="h-10"
+                                placeholder="Concept"
                             />
                         </div>
                     </div>
@@ -140,10 +95,6 @@ export function QuestionCard({
                         <Label className="text-xs font-semibold text-blue-700 uppercase tracking-wider">Working / Steps</Label>
                         <Textarea
                             {...register(`generatedQuestions.${idx}.working`)}
-                            onChange={(e) => {
-                                setValue(`generatedQuestions.${idx}.working`, e.target.value);
-                                setValue(`generatedQuestions.${idx}.isDirty`, true);
-                            }}
                             className="bg-blue-50/50 border-blue-200 text-blue-900 focus-visible:ring-blue-300 resize-none min-h-[80px]"
                             placeholder="Steps or explanation to solve the question..."
                         />
@@ -199,7 +150,6 @@ export function QuestionCard({
                                             value={String(field.value || 1)}
                                             onValueChange={v => {
                                                 field.onChange(parseInt(v));
-                                                setValue(`generatedQuestions.${idx}.isDirty`, true);
                                             }}
                                         >
                                             <SelectTrigger className="h-7 w-20 text-xs px-2">
@@ -213,24 +163,10 @@ export function QuestionCard({
                                         </Select>
                                     )}
                                 />
-
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8 text-muted-foreground hover:text-green-600"
-                                    onClick={() => onEvaluate(idx)}
-                                    disabled={evaluatingIndex === idx}
-                                >
-                                    {evaluatingIndex === idx ? (
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                    ) : (
-                                        <Search className="w-4 h-4" />
-                                    )}
-                                </Button>
                             </div>
                         </div>
 
-                        {q?.isDirty && (
+                        {isDirty && (
                             <Badge
                                 variant="default"
                                 className="text-xs bg-amber-500 hover:bg-amber-600 flex items-center gap-1 cursor-pointer"

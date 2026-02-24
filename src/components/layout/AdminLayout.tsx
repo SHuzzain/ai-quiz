@@ -33,7 +33,7 @@ const navItems = [
   { path: '/admin/lessons', icon: GraduationCap, label: 'Lessons' },
   { path: '/admin/reports', icon: ClipboardList, label: 'Reports' },
   { path: '/admin/analytics', icon: BarChart3, label: 'Analytics' },
-  { path: '/admin/question-bank', icon: Database, label: 'Question Bank' },
+  { path: '/admin/questions', icon: Database, label: 'Question Bank' },
 ];
 
 export function AdminLayout({ children }: AdminLayoutProps) {

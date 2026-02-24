@@ -64,6 +64,12 @@ export interface Question {
   microLearning: string; // AI-generated explanation for kids
   order: number;
   maxAttemptsBeforeStudy?: number;
+  topic: string;
+  concept: string;
+  mark: number;
+  difficulty: number;
+  working: string;
+  difficultyReason?: string;
 }
 
 export interface TestWithQuestions extends Test {
@@ -264,16 +270,29 @@ export interface ExtractedQuestionsResult {
 // ============================================
 
 export interface QuestionBankItem {
-  id: string;
   title: string;
   answer: string;
+  topic: string;
+  concept: string;
+  difficulty: number;
+  marks: number;
+  working?: string;
+  difficultyReason?: string;
+}
+
+export interface VariantConfig {
   topics: string[];
   concepts: string[];
   difficulty: number;
-  difficultyReason?: string;
   marks: number;
-  working?: string;
-  lessonId?: string;
+  variantCount: number;
+}
+
+export interface QuestionBankSet {
+  id: string;
+  title: string;
+  lessonId?: string | null;
+  questions: QuestionBankItem[];
   createdAt: Date;
   updatedAt: Date;
   createdBy?: string;
