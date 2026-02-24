@@ -4,163 +4,65 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import {
   useLessons,
-  useAnalyzeDocument,
-  useGenerateQuestionVariants,
-  useSaveQuestionBankItems,
+  useSaveQuestionBankSet,
   useEvaluateQuestionQuality,
   useRegenerateQuestionVariant,
 } from "@/hooks/useApi";
-import { extractTextFromUrl } from "@/utils/fileParser";
-import { DocumentAnalysis } from "@/types";
+import { QuestionBankItem } from "@/types";
 import {
   variantGenerationSchema,
   VariantGenerationForm,
 } from "@/schemas/questionBank";
 
 export function useAdminQuestionBank() {
-  // UI States (Purely for visual toggles, not field values)
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState<DocumentAnalysis | null>(
-    null,
-  );
-  const [extractedText, setExtractedText] = useState("");
-
   // Evaluation Loading States
-  const [evaluatingIndex, setEvaluatingIndex] = useState<number | null>(null);
-  const [regeneratingIndex, setRegeneratingIndex] = useState<number | null>(
-    null,
-  );
+  const [evaluatingId, setEvaluatingId] = useState<string | null>(null);
+  const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
+  const [lessonContent, setLessonContent] = useState("");
 
   // API Hooks
   const { data: lessons, isLoading: isLoadingLessons } = useLessons();
-  const analyzeDocument = useAnalyzeDocument();
-  const generateVariants = useGenerateQuestionVariants();
-  const saveQuestions = useSaveQuestionBankItems();
+  const saveQuestionSet = useSaveQuestionBankSet();
   const evaluateQuestion = useEvaluateQuestionQuality();
   const regenerateQuestion = useRegenerateQuestionVariant();
 
-  // Form setup - managing ALL field values
+  // Form setup
   const form = useForm<VariantGenerationForm>({
     resolver: zodResolver(variantGenerationSchema),
     defaultValues: {
       lessonId: "",
       title: "",
-      configurations: [
-        {
-          topics: [],
-          concepts: [],
-          difficulty: 1,
-          marks: 1,
-          variantCount: 5,
-        },
-      ],
+      configurations: [],
       generatedQuestions: [],
     },
-  });
-
-  // Config field array
-  const {
-    fields: configFields,
-    append: appendConfig,
-    remove: removeConfig,
-  } = useFieldArray({
-    control: form.control,
-    name: "configurations",
   });
 
   // Questions field array
   const {
     fields: questionFields,
-    replace: replaceQuestions,
+    append: appendQuestion,
+    remove: removeQuestion,
     update: updateQuestion,
   } = useFieldArray({
     control: form.control,
     name: "generatedQuestions",
   });
 
-  const handleAnalyze = async () => {
-    const lessonId = form.getValues("lessonId");
-    if (!lessonId) {
-      toast.error("Please select a lesson to analyze");
-      return;
-    }
+  const commitQuestions = (newQuestions: QuestionBankItem[]) => {
+    const mapped = newQuestions.map((q) => ({
+      ...q,
+      evaluateResult: null,
+      isDirty: false,
+    }));
 
-    const lesson = lessons?.find((l) => l.id === lessonId);
-    if (!lesson || !lesson.files || lesson.files.length === 0) {
-      toast.error("Selected lesson has no files");
-      return;
-    }
-
-    setIsAnalyzing(true);
-    try {
-      let fullText = "";
-      for (const file of lesson.files) {
-        try {
-          const text = await extractTextFromUrl(file.url, file.type, file.name);
-          fullText += `\n--- File: ${file.name} ---\n${text}`;
-        } catch (e) {
-          console.warn(`Could not parse ${file.name}`, e);
-        }
-      }
-
-      if (!fullText.trim()) {
-        throw new Error("No text could be extracted");
-      }
-      setExtractedText(fullText);
-
-      const analysis = await analyzeDocument.mutateAsync({ content: fullText });
-      setAnalysisResult(analysis);
-
-      setIsDrawerOpen(true);
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to analyze document");
-    } finally {
-      setIsAnalyzing(false);
-    }
+    mapped.forEach((q) => appendQuestion(q));
+    toast.success(`Added ${newQuestions.length} questions to the session.`);
   };
 
-  const onSubmitGenerate = async () => {
-    if (!extractedText) return;
+  const handleEvaluateQuestion = async (qId: string) => {
+    const idx = questionFields.findIndex((f) => f.id === qId);
+    if (idx === -1) return;
 
-    const validConfigs = form
-      .getValues("configurations")
-      .filter((c) => c.topics.length > 0 && c.concepts.length > 0);
-
-    if (validConfigs.length === 0) {
-      toast.error(
-        "Please ensure you have selected topics and concepts for configuration",
-      );
-      return;
-    }
-
-    try {
-      const response = await generateVariants.mutateAsync({
-        documentText: extractedText,
-        configurations: validConfigs,
-      });
-
-      const initQs = response.questions.map((q) => ({
-        ...q,
-        evaluateResult: null,
-        isDirty: false,
-      }));
-
-      // Replace the field array content
-      replaceQuestions(initQs);
-
-      setIsDrawerOpen(false);
-      toast.success(
-        `Generated ${response.questions.length} variant questions.`,
-      );
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to generate variants");
-    }
-  };
-
-  const handleEvaluateQuestion = async (idx: number) => {
     const questions = form.getValues("generatedQuestions");
     const questionToEval = questions[idx];
 
@@ -169,7 +71,7 @@ export function useAdminQuestionBank() {
       return;
     }
 
-    setEvaluatingIndex(idx);
+    setEvaluatingId(qId);
     try {
       const result = await evaluateQuestion.mutateAsync({
         question: questionToEval.title,
@@ -177,7 +79,6 @@ export function useAdminQuestionBank() {
         working: questionToEval.working,
       });
 
-      // Update the question in useFieldArray
       updateQuestion(idx, {
         ...questionToEval,
         evaluateResult: result,
@@ -192,31 +93,43 @@ export function useAdminQuestionBank() {
       console.error("Evaluation failed", error);
       toast.error("Failed to evaluate question");
     } finally {
-      setEvaluatingIndex(null);
+      setEvaluatingId(null);
     }
   };
 
-  const handleRegenerateQuestion = async (idx: number) => {
+  const handleRegenerateQuestion = async (qId: string) => {
+    const idx = questionFields.findIndex((f) => f.id === qId);
+    if (idx === -1) return;
+
     const questions = form.getValues("generatedQuestions");
-    console.log(form.formState.dirtyFields);
+    const isDirtyFields = form.formState.dirtyFields.generatedQuestions?.[
+      idx
+    ] as Record<string, boolean>;
     const q = questions[idx];
 
-    setRegeneratingIndex(idx);
+    if (!lessonContent) {
+      toast.error(
+        "Lesson content not available. Please re-analyze the lesson.",
+      );
+      return;
+    }
+
+    setRegeneratingId(qId);
     try {
       const result = await regenerateQuestion.mutateAsync({
-        documentText: extractedText,
+        documentText: lessonContent,
         currentQuestion: {
           title: q.title,
           answer: q.answer,
-          topics: q.topics,
-          concepts: q.concepts,
+          topic: q.topic,
+          concept: q.concept,
           difficulty: q.difficulty,
           marks: q.marks,
           working: q.working,
+          isDirtyFields: isDirtyFields || {},
         },
       });
 
-      // Update the question in useFieldArray with the new data
       updateQuestion(idx, {
         ...result,
         evaluateResult: null,
@@ -224,42 +137,54 @@ export function useAdminQuestionBank() {
       });
 
       toast.success("Question regenerated successfully!");
+      form.reset(undefined, { keepValues: true, keepDirty: false });
     } catch (error) {
       console.error("Regeneration failed", error);
       toast.error("Failed to regenerate question");
     } finally {
-      setRegeneratingIndex(null);
+      setRegeneratingId(null);
     }
   };
 
   const handleSave = async () => {
     const questions = form.getValues("generatedQuestions");
-    if (questions.length === 0) return;
+    if (questions.length === 0) {
+      toast.error("No questions to save");
+      return;
+    }
 
+    const title = form.getValues("title");
     const lessonId = form.getValues("lessonId");
 
+    if (!title || !lessonId) {
+      toast.error("Set title and lesson selection are required");
+      return;
+    }
+
     try {
-      const payload = questions.map((q) => ({
-        ...q,
-        lessonId: lessonId || undefined,
+      const cleanQuestions = questions.map((q) => ({
+        title: q.title,
+        answer: q.answer,
+        topic: q.topic,
+        concept: q.concept,
+        difficulty: q.difficulty,
+        marks: q.marks,
+        working: q.working,
+        difficultyReason: q.difficultyReason,
       }));
 
-      await saveQuestions.mutateAsync(payload);
-      toast.success(`Saved ${questions.length} questions to the bank!`);
+      await saveQuestionSet.mutateAsync({
+        title,
+        lessonId,
+        questions: cleanQuestions,
+        configurations: [],
+      });
 
-      // Reset everything after successful save
+      toast.success(`Saved set "${title}" with ${questions.length} questions!`);
       form.reset({
         lessonId: "",
         title: "",
-        configurations: [
-          {
-            topics: [],
-            concepts: [],
-            difficulty: 1,
-            marks: 1,
-            variantCount: 5,
-          },
-        ],
+        configurations: [],
         generatedQuestions: [],
       });
     } catch (error) {
@@ -270,24 +195,43 @@ export function useAdminQuestionBank() {
 
   return {
     form,
-    configFields,
-    appendConfig,
-    removeConfig,
-    questionFields,
+    generatedFields: questionFields,
     lessons,
     isLoadingLessons,
-    isAnalyzing,
-    isDrawerOpen,
-    setIsDrawerOpen,
-    analysisResult,
-    evaluatingIndex,
-    regeneratingIndex,
-    handleAnalyze,
-    onSubmitGenerate,
+    evaluatingId,
+    regeneratingId,
+    commitQuestions,
+    setLessonContent,
     handleEvaluateQuestion,
     handleRegenerateQuestion,
-    handleSave,
-    saveQuestionsPending: saveQuestions.isPending,
-    generateVariantsPending: generateVariants.isPending,
+    handleSaveToBank: handleSave,
+    saveItemsPending: saveQuestionSet.isPending,
+    addEmptyQuestion: () =>
+      appendQuestion({
+        title: "",
+        answer: "",
+        topic: "",
+        concept: "",
+        marks: 1,
+        difficulty: 1,
+        working: "",
+        evaluateResult: null,
+        isDirty: false,
+      }),
+    removeQuestion,
+    updateQuestionById: (
+      qId: string,
+      updates: Record<string, string | number | boolean | object>,
+    ) => {
+      const idx = questionFields.findIndex((f) => f.id === qId);
+      if (idx !== -1) {
+        const current = form.getValues(`generatedQuestions.${idx}`);
+        updateQuestion(idx, {
+          ...current,
+          ...updates,
+          isDirty: true,
+        });
+      }
+    },
   };
 }

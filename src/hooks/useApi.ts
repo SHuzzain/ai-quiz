@@ -19,6 +19,8 @@ import {
   TestWithQuestions,
   UserRole,
   TestAttempt,
+  QuestionBankItem,
+  QuestionBankSet,
 } from "@/types";
 import * as api from "@/services/api";
 
@@ -546,9 +548,13 @@ export function useGenerateQuestionVariants() {
   });
 }
 
-export function useSaveQuestionBankItems() {
+export function useSaveQuestionBankSet() {
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: api.saveQuestionBankItems,
+    mutationFn: api.saveQuestionBankSet,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["questionBankSets"] });
+    },
   });
 }
 
@@ -561,5 +567,51 @@ export function useEvaluateQuestionQuality() {
 export function useRegenerateQuestionVariant() {
   return useMutation({
     mutationFn: api.regenerateQuestionVariant,
+  });
+}
+
+export function useQuestionBankSets(filters?: {
+  lessonId?: string;
+  search?: string;
+}) {
+  return useQuery({
+    queryKey: ["questionBankSets", filters],
+    queryFn: () => api.getQuestionBankSets(filters),
+  });
+}
+
+export function useQuestionBankSet(id?: string) {
+  return useQuery({
+    queryKey: ["questionBankSet", id],
+    queryFn: () => api.getQuestionBankSet(id),
+    enabled: !!id,
+  });
+}
+
+export function useUpdateQuestionBankSet() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      updates,
+    }: {
+      id: string;
+      updates: Partial<QuestionBankSet>;
+    }) => api.updateQuestionBankSet(id, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["questionBankSets"] });
+    },
+  });
+}
+
+export function useDeleteQuestionBankSet() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: api.deleteQuestionBankSet,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["questionBankSets"] });
+    },
   });
 }

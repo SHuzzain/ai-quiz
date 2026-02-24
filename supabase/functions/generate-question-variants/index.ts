@@ -31,8 +31,8 @@ const RequestSchema = z.object({
 const QuestionBankItemSchema = z.object({
   title: z.string().describe("The generated question text"),
   answer: z.string().describe("Correct answer"),
-  topics: z.array(z.string()),
-  concepts: z.array(z.string()),
+  topic: z.string(),
+  concept: z.string(),
   difficulty: z.number().min(1).max(5),
   difficultyReason: z.string().describe("Reasoning for the difficulty level"),
   marks: z.number(),
