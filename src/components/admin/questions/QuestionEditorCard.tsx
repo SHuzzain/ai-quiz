@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { TOPIC, CONCEPT } from '@/constant';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -101,21 +102,35 @@ export function QuestionEditorCard({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                         <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Topic</Label>
-                        <Input
+                        <Select
                             value={data.topic}
-                            onChange={(e) => onUpdate(data.id, { topic: e.target.value })}
-                            className="h-9"
-                            placeholder="e.g., Algebra"
-                        />
+                            onValueChange={(val) => onUpdate(data.id, { topic: val })}
+                        >
+                            <SelectTrigger className="h-9">
+                                <SelectValue placeholder="Select topic" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {TOPIC.map(t => (
+                                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
                     <div className="space-y-1.5">
                         <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Concept</Label>
-                        <Input
+                        <Select
                             value={data.concept}
-                            onChange={(e) => onUpdate(data.id, { concept: e.target.value })}
-                            className="h-9"
-                            placeholder="e.g., Quadratic Equations"
-                        />
+                            onValueChange={(val) => onUpdate(data.id, { concept: val })}
+                        >
+                            <SelectTrigger className="h-9">
+                                <SelectValue placeholder="Select concept" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {CONCEPT.map(c => (
+                                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
                 </div>
 

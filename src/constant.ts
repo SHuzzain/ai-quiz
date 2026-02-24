@@ -1,1 +1,31 @@
-export const TOPIC = ["Whole Numbers", ""];
+export const TOPIC = [
+  "Whole Numbers",
+  "Decimals",
+  "Fractions",
+  "Percentages",
+  "Whole Numbers & Fractions",
+  "Mixed numbers",
+  "Ratio",
+  "Fraction & ratio",
+  "Mensuration",
+  "Data Handling",
+  "Logical Reasoning",
+];
+
+export const CONCEPT = [
+  "Value & Place Value",
+  "Multiplication of 3 digits by 2 digits",
+  "Division of 4 digits by 1 digit",
+  "Place Value",
+  "Common factors",
+  "Order of Operation",
+  "Four Operations",
+  "Rounding off",
+  "Subtraction with unlike denominator",
+  "Multiplication of whole number with fraction",
+  "Division of whole number with fraction",
+  "Equivalent fractions",
+  "Four Operations",
+  "Conversion to fraction",
+  "Equivalent ratio",
+];

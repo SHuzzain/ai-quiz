@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   Save,
   Loader2,
+  Calculator,
 } from 'lucide-react';
 import { AdminLayout } from '@/components/layout';
 import { QuestionsManager } from '@/components/admin/questions/QuestionsManager';
@@ -82,8 +83,10 @@ export function CreateTestPage() {
   const [duration, setDuration] = useState(15);
   const [scheduledDate, setScheduledDate] = useState('');
   const [lessonId, setLessonId] = useState('');
+  const [totalMarks, setTotalMarks] = useState(0);
   const { data: questionBankSets } = useQuestionBankSets({ lessonId });
   const [questions, setQuestions] = useState<QuestionForm[]>([]);
+
 
   // Track initial questions for diffing in edit mode
   const [initialQuestionIds, setInitialQuestionIds] = useState<Set<string>>(new Set());
@@ -118,6 +121,7 @@ export function CreateTestPage() {
       }));
       setQuestions(formattedQuestions);
       setInitialQuestionIds(new Set(formattedQuestions.map(q => q.id)));
+      setTotalMarks(existingTest.totalMark || 0);
     }
   }, [existingTest, isEditMode]);
 
@@ -136,6 +140,12 @@ export function CreateTestPage() {
       isDirty: false,
       order: prev.length + 1
     }]);
+  };
+
+  const calculateTotalMarks = () => {
+    const total = questions.reduce((sum, q) => sum + (Number(q.mark) || 0), 0);
+    setTotalMarks(total);
+    toast.success(`Total marks calculated: ${total}`);
   };
 
   const updateQuestion = (id: string, updates: Partial<QuestionForm>) => {
@@ -275,6 +285,7 @@ export function CreateTestPage() {
             scheduledDate: new Date(scheduledDate),
             lessonId: lessonId || undefined,
             questionCount: questions.length,
+            totalMark: totalMarks,
             ...(isToday ? { status: 'active' } : {})
           }
         });
@@ -321,6 +332,7 @@ export function CreateTestPage() {
           duration,
           scheduledDate: new Date(scheduledDate),
           lessonId,
+          totalMark: totalMarks,
           status: isToday ? 'active' : 'draft',
         });
 
@@ -397,7 +409,7 @@ export function CreateTestPage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="date">Date *</Label>
                     <Input
@@ -416,6 +428,26 @@ export function CreateTestPage() {
                       onChange={(e) => setDuration(Number(e.target.value))}
                       min={5}
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="totalMark">Total Mark</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="totalMark"
+                        type="number"
+                        value={totalMarks}
+                        onChange={(e) => setTotalMarks(Number(e.target.value))}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={calculateTotalMarks}
+                        title="Calculate Total Marks"
+                      >
+                        <Calculator className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
 

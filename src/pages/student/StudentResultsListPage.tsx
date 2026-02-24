@@ -55,10 +55,17 @@ export function StudentResultsListPage() {
                                         <div className="shrink-0">
                                             {attempt.status === 'completed' ? (
                                                 <div className={`w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold border-4 ${attempt.score && attempt.score >= 80 ? "border-emerald-500 text-emerald-600 bg-emerald-50" :
-                                                        attempt.score && attempt.score >= 60 ? "border-yellow-500 text-yellow-600 bg-yellow-50" :
-                                                            "border-red-500 text-red-600 bg-red-50"
+                                                    attempt.score && attempt.score >= 60 ? "border-yellow-500 text-yellow-600 bg-yellow-50" :
+                                                        "border-red-500 text-red-600 bg-red-50"
                                                     }`}>
-                                                    {attempt.score}%
+                                                    <div className="flex flex-col items-center">
+                                                        <span>{attempt.score}%</span>
+                                                        {attempt.totalMark ? (
+                                                            <span className="text-[10px] opacity-70 mt-1">
+                                                                {Math.round(((attempt.score || 0) / 100) * attempt.totalMark)}/{attempt.totalMark}
+                                                            </span>
+                                                        ) : null}
+                                                    </div>
                                                 </div>
                                             ) : (
                                                 <div className="w-16 h-16 rounded-full bg-indigo-50 border-4 border-indigo-200 flex items-center justify-center">
