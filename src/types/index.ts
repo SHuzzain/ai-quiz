@@ -289,6 +289,7 @@ export interface VariantConfig {
   difficulty: number;
   marks: number;
   variantCount: number;
+  baseQuestion?: string;
 }
 
 export interface QuestionBankSet {

@@ -36,7 +36,7 @@ serve(async (req) => {
     Give a helpful hint for a small child.`;
 
     const { text } = await generateText({
-      model: openai("gpt-4.1-mini"),
+      model: openai("gpt-4o-mini"),
       system: systemPrompt,
       prompt: prompt,
       temperature: 0.6,

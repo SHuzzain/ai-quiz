@@ -106,8 +106,8 @@ export function AdminTestAttemptDetail() {
                     <div>
                         <h1 className="text-3xl font-bold">{test.title}</h1>
                         <div className="flex items-center gap-2 text-muted-foreground">
-                            <span>Attempt ID: {attempt.id}</span>
-                            <span>•</span>
+                            {/* <span>Attempt ID: {attempt.id}</span>
+                            <span>•</span> */}
                             <span>{format(new Date(attempt.startedAt), 'PPP p')}</span>
                         </div>
                     </div>
@@ -128,11 +128,11 @@ export function AdminTestAttemptDetail() {
                         <CardContent>
                             <div className="flex items-end gap-2">
                                 <span className="text-4xl font-bold">{attempt.score ?? 0}%</span>
-                                {attempt.basicScore !== undefined && (
+                                {/* {attempt.basicScore !== undefined && (
                                     <span className="text-sm text-muted-foreground mb-1">
                                         (Raw: {attempt.basicScore}%)
                                     </span>
-                                )}
+                                )} */}
                             </div>
                             <Progress value={attempt.score ?? 0} className="h-2 mt-4" />
                         </CardContent>

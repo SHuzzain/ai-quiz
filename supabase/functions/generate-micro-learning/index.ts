@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { questionText, correctAnswer } = await req.json();
+    const { questionText, correctAnswer, studentQuestion } = await req.json();
 
     if (!questionText || !correctAnswer) {
       throw new Error("Missing questionText or correctAnswer");
@@ -24,13 +24,21 @@ serve(async (req) => {
     Use analogies, fun facts, or simple logic.
     Keep it under 3-4 sentences. Use emojis! 🎈`;
 
-    const prompt = `Question: "${questionText}"
+    let prompt = `Question: "${questionText}"
     Correct Answer: "${correctAnswer}"
     
     Explain this concept to a child.`;
 
+    if (studentQuestion) {
+      prompt = `Question: "${questionText}"
+      Correct Answer: "${correctAnswer}"
+      Student Question: "${studentQuestion}"
+      
+      Explain this concept to a child.`;
+    }
+
     const { text } = await generateText({
-      model: openai("gpt-4.1"),
+      model: openai("gpt-4o-mini"),
       system: systemPrompt,
       prompt: prompt,
       temperature: 0.5,

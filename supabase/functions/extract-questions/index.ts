@@ -29,7 +29,7 @@ const ResponseSchema = z.object({
 });
 
 const SYSTEM_PROMPT =
-  "You are an expert quiz creator. Generate a set of multiple-choice or fill-in-the-blank style questions based on the provided content. Include 3 hints and a micro-learning fact for each question.";
+  "You are an expert quiz creator. Generate a set of fill-in-the-blank style questions based on the provided content.";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {

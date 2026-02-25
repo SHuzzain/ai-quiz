@@ -35,9 +35,9 @@ import { Badge } from "@/components/ui/badge";
 import { MultiSelect } from '@/components/ui/multi-select';
 import { toast } from 'sonner';
 import { TOPIC, CONCEPT } from '@/constant';
-import { useLessons, useAnalyzeDocument, useGenerateQuestionVariants } from '@/hooks/useApi';
+import { useLessons, useAnalyzeDocument, useExtractQuestions, useGenerateQuestionVariants } from '@/hooks/useApi';
 import { extractTextFromUrl } from '@/utils/fileParser';
-import { DocumentAnalysis, QuestionBankItem, VariantConfig } from '@/types';
+import { DocumentAnalysis, QuestionBankItem, VariantConfig, ExtractedQuestion } from '@/types';
 import { motion } from 'framer-motion';
 
 export function AIQuestionGenerator({
@@ -54,6 +54,7 @@ export function AIQuestionGenerator({
     // API Hooks
     const { data: lessons } = useLessons();
     const analyzeDocument = useAnalyzeDocument();
+    const extractQuestions = useExtractQuestions();
     const generateVariants = useGenerateQuestionVariants();
 
     // Internal Logic State
@@ -61,6 +62,7 @@ export function AIQuestionGenerator({
     const [isGenerating, setIsGenerating] = useState(false);
     const [analysisResult, setAnalysisResult] = useState<DocumentAnalysis | null>(null);
     const [extractedText, setExtractedText] = useState('');
+    const [baseQuestions, setBaseQuestions] = useState<ExtractedQuestion[]>([]);
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
     // Generation Options
@@ -69,7 +71,8 @@ export function AIQuestionGenerator({
         concepts: [],
         difficulty: 1,
         marks: 1,
-        variantCount: 5
+        variantCount: 5,
+        baseQuestion: ''
     }]);
 
     const handleAnalyze = async () => {
@@ -100,14 +103,22 @@ export function AIQuestionGenerator({
             setExtractedText(fullText);
             onExtractedText?.(fullText);
 
-            const analysis = await analyzeDocument.mutateAsync({ content: fullText });
+            const [analysis, extraction] = await Promise.all([
+                analyzeDocument.mutateAsync({ content: fullText }),
+                extractQuestions.mutateAsync({ content: fullText, count: 7 })
+            ]);
+
             setAnalysisResult(analysis);
+            setBaseQuestions(extraction.questions || []);
+            const defaultBaseQ = extraction.questions && extraction.questions.length > 0 ? extraction.questions[0].questionText : '';
+
             setConfigurations([{
                 topics: [],
                 concepts: [],
                 difficulty: 1,
                 marks: 1,
-                variantCount: 5
+                variantCount: 5,
+                baseQuestion: defaultBaseQ
             }]);
             setIsDrawerOpen(true);
         } catch (error) {
@@ -157,12 +168,14 @@ export function AIQuestionGenerator({
     };
 
     const addConfiguration = () => {
+        const defaultBaseQ = baseQuestions.length > 0 ? baseQuestions[0].questionText : '';
         setConfigurations(prev => [...prev, {
             topics: [],
             concepts: [],
             difficulty: 2,
             marks: 1,
-            variantCount: 5
+            variantCount: 5,
+            baseQuestion: defaultBaseQ
         }]);
     };
 
@@ -208,7 +221,7 @@ export function AIQuestionGenerator({
                             {analysisResult && (
                                 <div className="grid md:grid-cols-3 gap-6">
                                     {/* Analysis Summary */}
-                                    <div className="md:col-span-1 space-y-4">
+                                    {/* <div className="md:col-span-1 space-y-4">
                                         <div className="p-4 bg-muted/50 rounded-xl border space-y-3">
                                             <Label className="text-xs uppercase tracking-wider text-muted-foreground font-bold">Content Summary</Label>
                                             <p className="text-sm leading-relaxed">{analysisResult.summary}</p>
@@ -216,10 +229,10 @@ export function AIQuestionGenerator({
                                                 <Badge variant="outline" className="bg-white border-primary/20 text-primary">{analysisResult.difficulty}</Badge>
                                             </div>
                                         </div>
-                                    </div>
+                                    </div> */}
 
                                     {/* Config Panels */}
-                                    <div className="md:col-span-2 space-y-4">
+                                    <div className="md:col-span-3 space-y-4">
                                         <div className="flex items-center justify-between mb-2">
                                             <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Generation Variants</Label>
                                             <Button variant="outline" size="sm" onClick={addConfiguration} className="h-7 text-xs border-primary/20 text-indigo-700 hover:bg-primary/10">
@@ -240,7 +253,31 @@ export function AIQuestionGenerator({
                                                         <Trash2 className="w-3.5 h-3.5" />
                                                     </Button>
 
-                                                    <div className="space-y-4">
+                                                    <div className="space-y-4 pt-4">
+                                                        <div className="space-y-2">
+                                                            <Label className="text-xs font-semibold">Base Question</Label>
+                                                            <Select
+                                                                value={config.baseQuestion || 'none'}
+                                                                onValueChange={(v) => updateConfiguration(idx, { baseQuestion: v === 'none' ? '' : v })}
+                                                            >
+                                                                <SelectTrigger className="h-auto py-2 px-3 text-left">
+                                                                    <div className="line-clamp-2 pr-2 text-sm leading-relaxed whitespace-pre-wrap">
+                                                                        {config.baseQuestion || "No Base Question (Generate from scratch)..."}
+                                                                    </div>
+                                                                </SelectTrigger>
+                                                                <SelectContent className="max-w-[500px] max-h-[300px]">
+                                                                    {baseQuestions.map((bq, bIdx) => (
+                                                                        <SelectItem key={bIdx} value={bq.questionText} className="py-3 mt-1 border-t">
+                                                                            <div className="flex flex-col gap-1">
+                                                                                <small className="text-xs font-medium text-gray-400 uppercase">Extracted Question {bIdx + 1}</small>
+                                                                                <span className="text-sm text-foreground leading-snug break-words whitespace-normal">{bq.questionText}</span>
+                                                                            </div>
+                                                                        </SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+
                                                         <div className="space-y-2">
                                                             <Label className="text-xs font-semibold">Select Topics</Label>
                                                             <MultiSelect

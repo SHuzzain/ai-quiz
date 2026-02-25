@@ -71,8 +71,10 @@ export function TestTakingPage() {
   }, [testId, user?.id, attempt]);
 
   // Hydrate state from existing attempt details (Resume functionality)
+  const [hasHydrated, setHasHydrated] = useState(false);
+
   useEffect(() => {
-    if (attemptDetails?.questionResults && attemptDetails.questionResults.length > 0 && results.length === 0) {
+    if (attemptDetails?.questionResults && attemptDetails.questionResults.length > 0 && !hasHydrated) {
       const previousResults = attemptDetails.questionResults.map(qr => ({
         questionId: qr.questionId,
         correct: qr.isCorrect,
@@ -86,8 +88,9 @@ export function TestTakingPage() {
         setCurrentQuestionIndex(nextIndex);
         setQuestionStartTime(Date.now()); // Reset for resumed question
       }
+      setHasHydrated(true);
     }
-  }, [attemptDetails, questions.length, results.length]);
+  }, [attemptDetails, questions.length, hasHydrated]);
 
   const handleSubmitAnswer = async () => {
     if (!currentQuestion || !attempt) return;

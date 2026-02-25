@@ -4,18 +4,15 @@ import { generateText, Output } from "npm:ai";
 import { z } from "npm:zod";
 import { corsHeaders } from "../_shared/cors.ts";
 
-/* -------------------- API KEY VALIDATION -------------------- */
-
+/* ---------------- API KEY ---------------- */
 const apiKey = Deno.env.get("OPENAI_API_KEY");
-if (!apiKey) {
-  throw new Error("Missing OPENAI_API_KEY environment variable");
-}
+if (!apiKey) throw new Error("Missing OPENAI_API_KEY");
 
 const openai = createOpenAI({ apiKey });
 
-/* -------------------- SCHEMAS -------------------- */
-
+/* ---------------- REQUEST SCHEMA ---------------- */
 const VariantConfigSchema = z.object({
+  baseQuestion: z.string().min(1),
   topics: z.array(z.string()).min(1),
   concepts: z.array(z.string()).min(1),
   difficulty: z.number().min(1).max(5),
@@ -25,52 +22,56 @@ const VariantConfigSchema = z.object({
 
 const RequestSchema = z.object({
   documentText: z.string().optional(),
-  configurations: z.array(VariantConfigSchema).min(1),
+  configurations: z.array(VariantConfigSchema),
 });
 
-const QuestionBankItemSchema = z.object({
-  title: z.string().describe("The generated question text"),
-  answer: z.string().describe("Correct answer"),
+/* ---------------- RESPONSE SCHEMA ---------------- */
+const QuestionSchema = z.object({
+  variationType: z.string(), // AI decides automatically
+  title: z.string(),
+  answer: z.string(),
   topic: z.string(),
   concept: z.string(),
   difficulty: z.number().min(1).max(5),
-  difficultyReason: z.string().describe("Reasoning for the difficulty level"),
+  difficultyReason: z.string(),
   marks: z.number(),
-  working: z
-    .string()
-    .describe(
-      "Working steps for the question (Return empty string if no working is needed)",
-    ),
+  working: z.string(),
 });
 
 const ResponseSchema = z.object({
-  questions: z.array(QuestionBankItemSchema),
+  questions: z.array(QuestionSchema),
 });
 
-/* -------------------- SYSTEM PROMPT -------------------- */
-
+/* ---------------- SYSTEM PROMPT ---------------- */
 const SYSTEM_PROMPT = `
-You are an expert curriculum designer and mathematics question generator.
+You are a mathematics curriculum expert. Generate variations of the given base question.
 
-Strict Rules:
-1. Follow EACH configuration exactly.
-2. Generate EXACTLY the requested 'variantCount' per configuration.
-3. Do NOT mix topics or concepts across configurations.
-4. Difficulty must match numeric level (1 = easiest, 5 = hardest).
-5. Marks must reflect complexity:
-   - 1 mark: single-step direct question
-   - 2 marks: multi-step but straightforward
-   - 3+ marks: deeper reasoning or multi-step logic
-6. Provide clear answers.
-7. Provide working steps for difficulty >= 3.
-8. Output must strictly match the JSON schema.
-9. No explanations outside JSON.
-
-Be precise. Do not drift outside requested topics and concepts.
+Rules:
+1. Base question is ONLY the pattern.
+2. Generate exactly the number of variations requested.
+3. Keep topic, concept, difficulty, marks SAME as input.
+4. Automatically assign variationType (e.g., sentencing, number_change, context_change, harder, easier_phrasing, answer_different).
+5. Variations can change numbers, names, phrasing, or context but computation logic must follow the base pattern.
+6. Include working and difficultyReason for each question.
+7. Output STRICT JSON matching schema:
+{
+  "questions": [
+    {
+      "variationType": "string",
+      "title": "string",
+      "answer": "string",
+      "topic": "string",
+      "concept": "string",
+      "difficulty": "number",
+      "difficultyReason": "string",
+      "marks": "number",
+      "working": "string"
+    }
+  ]
+}
 `;
 
-/* -------------------- SERVER -------------------- */
-
+/* ---------------- SERVER ---------------- */
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -80,74 +81,54 @@ serve(async (req) => {
     const body = await req.json();
     const payload = RequestSchema.parse(body);
 
-    // Prevent token overflow
-    const safeDocumentText = payload.documentText
-      ? payload.documentText
-      : "No document text provided.";
+    const allQuestions: any[] = [];
 
-    const configText = payload.configurations
-      .map(
-        (cfg, i) => `
-Configuration ${i + 1}:
-- Topics: ${cfg.topics.join(", ")}
-- Concepts: ${cfg.concepts.join(", ")}
-- Difficulty: ${cfg.difficulty}
-- Marks: ${cfg.marks}
-- Generate EXACTLY ${cfg.variantCount} questions.
-`,
-      )
-      .join("\n");
+    // Process each base question configuration
+    for (const config of payload.configurations) {
+      const prompt = `
+Base Question:
+${config.baseQuestion}
 
-    const prompt = `
-Generate questions based on the reference document and configurations.
-
---- Reference Context ---
-${safeDocumentText}
-
---- Configurations ---
-${configText}
+Generate EXACTLY ${config.variantCount} variations.
+- Topic: ${config.topics[0]}
+- Concept: ${config.concepts.join(", ")}
+- Difficulty: ${config.difficulty}
+- Marks: ${config.marks}
+- Keep computation logic same as base question.
+- Assign variationType automatically.
+- Include working and difficultyReason.
 `;
 
-    const result = await generateText({
-      model: openai("gpt-4o"),
-      system: SYSTEM_PROMPT,
-      prompt,
-      output: Output.object({ schema: ResponseSchema }),
-      temperature: 0.5, // Reduced for stability
-    });
+      const result = await generateText({
+        model: openai("gpt-5"),
+        system: SYSTEM_PROMPT,
+        prompt,
+        output: Output.object({ schema: ResponseSchema }),
+      });
 
-    // Extra safety check to ensure count matches expected total
-    const expectedCount = payload.configurations.reduce(
-      (sum, cfg) => sum + cfg.variantCount,
-      0,
-    );
+      // Enforce topic, concept, marks, difficulty
+      const validatedQuestions = result.output.questions.map((q) => ({
+        ...q,
+        topic: config.topics[0],
+        concept: config.concepts[0],
+        marks: config.marks,
+        difficulty: config.difficulty,
+      }));
 
-    if (result.output.questions.length !== expectedCount) {
-      throw new Error(
-        `Generated ${result.output.questions.length} questions but expected ${expectedCount}`,
-      );
+      allQuestions.push(...validatedQuestions);
     }
 
-    return new Response(JSON.stringify(result.output), {
-      headers: {
-        ...corsHeaders,
-        "Content-Type": "application/json",
-      },
+    return new Response(JSON.stringify({ questions: allQuestions }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
   } catch (error) {
-    console.error("Question generation error:", error);
-
     return new Response(
       JSON.stringify({
-        error:
-          error instanceof Error ? error.message : "Unknown error occurred",
+        error: error instanceof Error ? error.message : "Unknown error",
       }),
       {
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json",
-        },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 400,
       },
     );

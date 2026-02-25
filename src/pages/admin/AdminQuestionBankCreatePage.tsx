@@ -41,7 +41,7 @@ export default function AdminQuestionBankCreatePage() {
         navigate('/admin/questions');
     };
 
-    const mappedQuestions: QuestionEditorData[] = generatedFields.map((f) => ({
+    const mappedQuestions: QuestionEditorData[] = generatedFields.map((f, i) => ({
         id: f.id,
         questionText: f.title,
         correctAnswer: f.answer,
@@ -58,6 +58,7 @@ export default function AdminQuestionBankCreatePage() {
         } : null,
         isDirty: f.isDirty
     }));
+
 
     return (
         <AdminLayout>
@@ -136,7 +137,7 @@ export default function AdminQuestionBankCreatePage() {
 
                             {/* Right: Preview & Actions */}
                             <div className="md:col-span-2 space-y-6">
-                                <Card className="border-primary/20 shadow-sm overflow-hidden border-none shadow-none bg-transparent">
+                                <Card className="border-primary/20 overflow-hidden border-none shadow-none bg-transparent">
                                     <CardHeader className="bg-transparent px-0 py-4 pt-0">
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-2">

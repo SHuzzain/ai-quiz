@@ -1291,7 +1291,11 @@ export async function getMicroLearning(
 
   // If no static content, or if the student has a specific question, try to generate AI content.
   // Note: if studentQuestion is provided, we bypass the static micro_learning to give them a tailored answer.
-  if (!question.micro_learning || question.micro_learning.trim() === "" || studentQuestion) {
+  if (
+    !question.micro_learning ||
+    question.micro_learning.trim() === "" ||
+    studentQuestion
+  ) {
     if (attemptId) {
       const { data: qAttempt } = await supabase
         .from("question_attempts")
@@ -1579,8 +1583,8 @@ export async function completeAttempt(
   const persistenceScoreVal =
     multiAttemptQuestionsVal.length > 0
       ? Math.round(
-        (persistedCorrectCountVal / multiAttemptQuestionsVal.length) * 100,
-      )
+          (persistedCorrectCountVal / multiAttemptQuestionsVal.length) * 100,
+        )
       : 100;
 
   const masteryAchievedVal =
@@ -1606,13 +1610,13 @@ export async function completeAttempt(
   const hintDependencyRateVal =
     correctCount > 0
       ? Math.round(
-        (qAttempts.filter(
-          (qa) =>
-            (Number(qa.ai_score) || 0) >= 60 && (qa.hints_used || 0) > 0,
-        ).length /
-          correctCount) *
-        100,
-      )
+          (qAttempts.filter(
+            (qa) =>
+              (Number(qa.ai_score) || 0) >= 60 && (qa.hints_used || 0) > 0,
+          ).length /
+            correctCount) *
+            100,
+        )
       : 0;
 
   // 4. Update Database
@@ -1690,18 +1694,18 @@ export async function completeAttempt(
     questionResults: [],
     test: fullTest
       ? ({
-        id: fullTest.id,
-        title: fullTest.title,
-        description: fullTest.description,
-        status: fullTest.status as Test["status"],
-        scheduledDate: new Date(fullTest.scheduled_date),
-        duration: fullTest.duration,
-        createdAt: new Date(fullTest.created_at),
-        createdBy: fullTest.created_by,
-        lessonId: fullTest.lesson_id || undefined,
-        questionCount: fullTest.question_count,
-        questions: [],
-      } as TestWithQuestions)
+          id: fullTest.id,
+          title: fullTest.title,
+          description: fullTest.description,
+          status: fullTest.status as Test["status"],
+          scheduledDate: new Date(fullTest.scheduled_date),
+          duration: fullTest.duration,
+          createdAt: new Date(fullTest.created_at),
+          createdBy: fullTest.created_by,
+          lessonId: fullTest.lesson_id || undefined,
+          questionCount: fullTest.question_count,
+          questions: [],
+        } as TestWithQuestions)
       : undefined,
   };
 }
@@ -2022,19 +2026,19 @@ export async function getOverallAnalytics(): Promise<OverallAnalytics> {
       const avgScore =
         completed.length > 0
           ? completed.reduce((sum, a) => sum + (a.score || 0), 0) /
-          completed.length
+            completed.length
           : 0;
 
       const avgTime =
         completed.length > 0
           ? completed.reduce((sum, a) => sum + (a.time_taken_seconds || 0), 0) /
-          completed.length
+            completed.length
           : 0;
 
       const avgHints =
         completed.length > 0
           ? completed.reduce((sum, a) => sum + (a.hints_used || 0), 0) /
-          completed.length
+            completed.length
           : 0;
 
       const completionRate =
@@ -2083,7 +2087,7 @@ export async function getTestAnalytics(testId: string) {
   const avgTime =
     completed.length > 0
       ? completed.reduce((sum, a) => sum + (a.time_taken_seconds || 0), 0) /
-      completed.length
+        completed.length
       : 0;
 
   return {
@@ -2456,13 +2460,19 @@ export interface VariantConfig {
   difficulty: number;
   marks: number;
   variantCount: number;
+  baseQuestion?: string;
 }
 
 export interface GenerateVariantsPayload {
   documentText?: string;
   configurations: Pick<
     VariantConfigForm,
-    "topics" | "concepts" | "difficulty" | "marks" | "variantCount"
+    | "topics"
+    | "concepts"
+    | "difficulty"
+    | "marks"
+    | "variantCount"
+    | "baseQuestion"
   >[];
 }
 

@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const variantConfigSchema = z.object({
   id: z.string().optional(),
+  baseQuestion: z.string().optional(),
   topics: z.array(z.string()).min(1, "At least one topic is required"),
   concepts: z.array(z.string()).min(1, "At least one concept is required"),
   difficulty: z.number().min(1).max(5),

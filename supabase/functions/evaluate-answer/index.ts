@@ -27,7 +27,7 @@ serve(async (req) => {
     - 90-99: Minor typo (1-2 letters) but clearly correct meaning.
     - 80-89: Correct concept but slightly vague or missing a small detail.
     - 50-79: Partially correct but missing key keywords or context.
-    - 0-49: Incorrect or irrelevant.
+- 0–49: Incorrect, irrelevant, or numerically incorrect.
 
     Return JSON ONLY:
     {
@@ -44,7 +44,7 @@ serve(async (req) => {
     Grade this answer.`;
 
     const { text } = await generateText({
-      model: openai("gpt-5"),
+      model: openai("gpt-4o-mini"),
       system: systemPrompt,
       prompt: prompt,
       temperature: 0.2,
