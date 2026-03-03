@@ -378,6 +378,11 @@ export function CreateTestPage() {
       return;
     }
 
+    if (numberOfQuestions && numberOfQuestions > questions.length) {
+      toast.error('Question limit cannot be greater than the number of questions.');
+      return;
+    }
+
     setIsSaving(true);
     try {
       const today = new Date();
@@ -753,7 +758,7 @@ export function CreateTestPage() {
                       {modalFilteredItems.map(({ key, setTitle, item }) => (
                         <label
                           key={key}
-                          className="flex items-start gap-2 p-2 rounded hover:bg-muted/50 cursor-pointer text-sm"
+                          className="flex items-start gap-2 p-2 rounded hover:bg-muted/50 cursor-pointer text-sm odd:bg-gray-100"
                         >
                           <Checkbox
                             checked={selectedImportKeys.has(key)}

@@ -83,7 +83,7 @@ export function AdminLessonsPage() {
             <DialogTrigger asChild>
               <Button className="gap-2">
                 <Plus className="w-4 h-4" />
-                Upload Lesson
+                Upload Document
               </Button>
             </DialogTrigger>
             <DialogContent>
