@@ -166,6 +166,7 @@ export function QuestionCard({
                             </div>
                         </div>
 
+                        {/* Hidden: Regenerate with AI – uncomment to re-enable
                         {isDirty && (
                             <Badge
                                 variant="default"
@@ -180,6 +181,7 @@ export function QuestionCard({
                                 {regeneratingIndex === idx ? 'Regenerating...' : 'Re-Generate with AI'}
                             </Badge>
                         )}
+                        */}
                     </div>
                 </div>
             </div>

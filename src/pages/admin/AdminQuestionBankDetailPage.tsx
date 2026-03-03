@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { FormProvider, useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { AIQuestionGenerator } from "@/components/admin/ai-generator/AIQuestionGenerator";
 import { QuestionsManager, QuestionEditorData } from "@/components/admin/questions/QuestionsManager";
 
@@ -26,7 +27,8 @@ import {
     useDeleteQuestionBankSet,
     useLessons,
     useEvaluateQuestionQuality,
-    useRegenerateQuestionVariant
+    useRegenerateQuestionVariant,
+    useAnalyzeDocument
 } from "@/hooks/useApi";
 import {
     VariantGenerationForm,
@@ -69,6 +71,17 @@ export default function AdminQuestionBankDetailPage() {
         if (index === -1) return;
 
         const current = fields[index];
+
+        const triggerFields = [
+            "title",
+            "answer",
+            "topic",
+            "concept",
+            "difficulty",
+        ];
+        const hasTriggerField = Object.keys(updates).some((key) =>
+            triggerFields.includes(key),
+        );
         update(index, {
             ...current,
             ...(updates.questionText !== undefined && { title: updates.questionText }),
@@ -80,7 +93,8 @@ export default function AdminQuestionBankDetailPage() {
             ...(updates.working !== undefined && { working: updates.working }),
             ...(updates.difficultyReason !== undefined && { difficultyReason: updates.difficultyReason }),
             ...(updates.evaluateResult !== undefined && { evaluateResult: updates.evaluateResult }),
-            isDirty: true
+            isDirty: ("isDirty" in current && (current.isDirty as boolean)) ||
+                hasTriggerField,
         });
     };
 
@@ -151,6 +165,8 @@ export default function AdminQuestionBankDetailPage() {
         }
     };
 
+    const analyzeMutation = useAnalyzeDocument();
+
     useEffect(() => {
         if (set) {
             form.reset({
@@ -163,8 +179,28 @@ export default function AdminQuestionBankDetailPage() {
                     isDirty: false,
                 })),
             });
+
+            // Extract lesson text for AI features if lesson exists
+            if (set.lessonId) {
+                const lesson = lessons?.find(l => l.id === set.lessonId);
+                if (lesson && lesson.files.length > 0) {
+                    // Start extracting
+                    Promise.all(lesson.files.map(async (f) => {
+                        const { data } = await supabase.storage.from('lessons').download(f.url);
+                        if (data) {
+                            return await data.text();
+                        }
+                        return "";
+                    })).then(texts => {
+                        const fullText = texts.join('\n\n');
+                        analyzeMutation.mutateAsync({ content: fullText }).then(() => {
+                            setLessonContent(fullText);
+                        }).catch(console.error);
+                    });
+                }
+            }
         }
-    }, [set, form]);
+    }, [set, form, lessons, analyzeMutation]);
 
     const handleSave = async (data: VariantGenerationForm) => {
         if (!id) return;

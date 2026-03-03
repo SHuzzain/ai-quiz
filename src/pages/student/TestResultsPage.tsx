@@ -187,7 +187,6 @@ export function TestResultsPage() {
                 const questionDetails = attemptDetails?.test.questions.find(q => q.id === result.questionId);
                 const questionText = questionDetails?.questionText || `Question ${index + 1}`;
                 const questionAttempt = attemptDetails?.questionResults.find(qr => qr.questionId === result.questionId);
-                console.log({ questionDetails, result })
                 return (
                   <AccordionItem key={index} value={`item-${index}`} className="bg-card rounded-xl border px-0 overflow-hidden">
                     <AccordionTrigger className="px-4 hover:no-underline hover:bg-muted/50 transition-colors">
@@ -207,10 +206,10 @@ export function TestResultsPage() {
                       </div>
 
                       <div className="flex items-center gap-2 mr-2">
-                        {result.hintsUsed > 0 && (
+                        {(result.hintsUsed ?? 0) > 0 && (
                           <div className="flex items-center gap-1 text-xs text-kid-yellow font-medium bg-kid-yellow/10 px-2 py-1 rounded-full whitespace-nowrap">
                             <Lightbulb className="w-3 h-3" />
-                            {questionAttempt?.generatedHints.length}
+                            {result.hintsUsed ?? questionAttempt?.generatedHints?.length ?? 0}
                           </div>
                         )}
                         {(questionAttempt?.viewedMicroLearning) && (

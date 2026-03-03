@@ -38,7 +38,7 @@ export const queryKeys = {
   user: (id: string) => ["user", id] as const,
 
   // Tests
-  tests: (filters?: { status?: Test["status"]; search?: string }) =>
+  tests: (filters?: { status?: string; search?: string }) =>
     ["tests", filters] as const,
   test: (id: string) => ["test", id] as const,
   testWithQuestions: (id: string) => ["test", id, "questions"] as const,
@@ -60,6 +60,9 @@ export const queryKeys = {
 
   // Question Bank
   questionBankItems: ["questionBankItems"] as const,
+
+  // Single question (by id)
+  question: (questionId: string) => ["question", questionId] as const,
 };
 
 export function useCurrentUser() {
@@ -153,7 +156,7 @@ export function useUpdateUser() {
 // ============================================
 
 export function useTests(filters?: {
-  status?: Test["status"];
+  status?: string;
   search?: string;
 }) {
   return useQuery({
@@ -392,8 +395,34 @@ export function useStartAttempt() {
 }
 
 export function useSubmitAnswer() {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: api.submitAnswer,
+    onSuccess: (_, { attemptId }) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.attemptResult(attemptId),
+      });
+    },
+  });
+}
+
+export function useGetNextAdaptiveQuestion() {
+  return useMutation({
+    mutationFn: (attemptId: string) => api.getNextAdaptiveQuestion(attemptId),
+  });
+}
+
+export function useGetQuestion() {
+  return useMutation({
+    mutationFn: (questionId: string) => api.getQuestionById(questionId),
+  });
+}
+
+export function useQuestion(questionId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.question(questionId ?? ""),
+    queryFn: () => api.getQuestionById(questionId!),
+    enabled: !!questionId,
   });
 }
 

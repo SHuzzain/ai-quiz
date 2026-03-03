@@ -3,8 +3,8 @@
  * Shows one question at a time with hints and micro-learning
  */
 
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowRight,
@@ -16,32 +16,25 @@ import {
   CheckCircle2,
   XCircle,
   FileText,
-  Volume2
+  Volume2,
+  Loader,
+  Loader2
 } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
-import { useTestWithQuestions, useStartAttempt, useSubmitAnswer, useHint, useAttemptDetails, useLesson, useCompleteAttempt, useTrackStudyMaterialDownload, useMicroLearning } from '@/hooks/useApi';
+import { useSubmitAnswer, useHint, useCompleteAttempt, useTrackStudyMaterialDownload, useMicroLearning, useTestAttempt, useQuestion } from '@/hooks/useApi';
 import { Button } from '@/components/ui/button';
-import { Question, TestAttempt } from '@/types';
 
 export function TestTakingPage() {
-  const { testId } = useParams<{ testId: string }>();
+  const { attemptId } = useParams<{ attemptId: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
 
-  const { data: testData, isLoading } = useTestWithQuestions(testId || '');
-  const startAttempt = useStartAttempt();
+  const { data: attempt, isLoading: attemptLoading } = useTestAttempt(attemptId ?? '');
+  const { data: currentQuestion, isLoading: questionLoading } = useQuestion(attempt?.currentQuestionId);
   const submitAnswer = useSubmitAnswer();
   const getHint = useHint();
   const getMicroLearning = useMicroLearning();
   const completeAttempt = useCompleteAttempt();
-  const { data: lesson } = useLesson(testData?.lessonId || '');
   const trackDownload = useTrackStudyMaterialDownload();
 
-  const [attempt, setAttempt] = useState<TestAttempt | null>(null);
-
-  // Fetch attempt details to resume progress if an attempt exists
-  const { data: attemptDetails } = useAttemptDetails(attempt?.id || '');
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answer, setAnswer] = useState('');
   const [hintsUsed, setHintsUsed] = useState<string[]>([]);
   const [showWrongModal, setShowWrongModal] = useState(false);
@@ -51,53 +44,19 @@ export function TestTakingPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
   const [attemptCount, setAttemptCount] = useState(0);
-  const [microLearningViewed, setMicroLearningViewed] = useState(false); // Track if viewed for current question
+  const [microLearningViewed, setMicroLearningViewed] = useState(false);
   const [results, setResults] = useState<{ questionId: string; correct: boolean; hintsUsed: number }[]>([]);
-  const [testStartTime] = useState(Date.now()); // Total test time
-  const [questionStartTime, setQuestionStartTime] = useState(Date.now()); // Current question time
-
-  const questions = testData?.questions || [];
-  const currentQuestion = questions[currentQuestionIndex];
+  const [testStartTime] = useState(Date.now());
+  const [questionStartTime, setQuestionStartTime] = useState(Date.now());
+  const totalQuestions = attempt?.totalQuestions ?? 0;
+  const currentQuestionNumber = (attempt?.attemptedQuestionsCount ?? 1);
   const totalHintsAvailable = 3;
-
-  // Start attempt when component mounts
-  useEffect(() => {
-    if (testId && user?.id && !attempt) {
-      startAttempt.mutateAsync({ testId, studentId: user.id })
-        .then(setAttempt)
-        .catch(console.error);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [testId, user?.id, attempt]);
-
-  // Hydrate state from existing attempt details (Resume functionality)
-  const [hasHydrated, setHasHydrated] = useState(false);
-
-  useEffect(() => {
-    if (attemptDetails?.questionResults && attemptDetails.questionResults.length > 0 && !hasHydrated) {
-      const previousResults = attemptDetails.questionResults.map(qr => ({
-        questionId: qr.questionId,
-        correct: qr.isCorrect,
-        hintsUsed: qr.hintsUsed
-      }));
-      setResults(previousResults);
-
-      // Resume from next question
-      const nextIndex = previousResults.length;
-      if (nextIndex < questions.length) {
-        setCurrentQuestionIndex(nextIndex);
-        setQuestionStartTime(Date.now()); // Reset for resumed question
-      }
-      setHasHydrated(true);
-    }
-  }, [attemptDetails, questions.length, hasHydrated]);
+  const lesson = { files: [] as { name: string; url: string }[] };
 
   const handleSubmitAnswer = async () => {
     if (!currentQuestion || !attempt) return;
 
     const timeTaken = Math.floor((Date.now() - questionStartTime) / 1000);
-    // current attemptCount is 0-based for specific wrong tries before this submit? 
-    // actually attemptCount starts at 0. If it's the first try, it's 1 attempt total.
     const currentAttemptNumber = attemptCount + 1;
 
     const result = await submitAnswer.mutateAsync({
@@ -120,7 +79,6 @@ export function TestTakingPage() {
 
       // Move to next question after delay
       setTimeout(() => {
-        // Pass true to indicate the current question was answered correctly
         goToNextQuestion(true);
       }, 2000);
     } else {
@@ -185,8 +143,8 @@ export function TestTakingPage() {
   };
 
   const goToNextQuestion = (currentResultIsCorrect?: boolean) => {
-    if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex(prev => prev + 1);
+    const hasNext = attempt && currentQuestionNumber < attempt.totalQuestions;
+    if (hasNext) {
       setAnswer('');
       setAiQuestion('');
       setHintsUsed([]);
@@ -194,38 +152,37 @@ export function TestTakingPage() {
       setAttemptCount(0);
       setShowMicroLearning(false);
       setMicroLearningContent('');
-      setMicroLearningViewed(false); // Reset for next question
-      setQuestionStartTime(Date.now()); // Reset timer
+      setMicroLearningViewed(false);
+      setQuestionStartTime(Date.now());
     } else {
-      // Test complete - navigate to results
       const totalTimeTaken = Math.floor((Date.now() - testStartTime) / 1000);
-
-      // Fix: Use explicit argument if provided, as state might be stale in closure
       const finalIsCorrect = currentResultIsCorrect ?? (isCorrect === true);
       const correctCount = results.filter(r => r.correct).length + (finalIsCorrect ? 1 : 0);
+      const score = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
 
-      const score = Math.round((correctCount / questions.length) * 100);
-
-      // Complete the attempt in backend
       completeAttempt.mutateAsync({
-        attemptId: attempt?.id || '',
+        attemptId: attempt?.id ?? '',
         metrics: {
           score,
           timeTakenSeconds: totalTimeTaken,
           correctAnswers: correctCount,
-          totalQuestions: questions.length,
-          hintsUsed: hintsUsed.length // This might need accumulation from all questions if not handled elsewhere
-        }
-      }).then(() => {
-        navigate(`/student/results/${attempt?.id}`, {
-          state: {
-            score,
-            timeTaken: totalTimeTaken,
-            results,
-            testTitle: testData?.title
+          totalQuestions,
+          hintsUsed: hintsUsed.length,
+        },
+      },
+        {
+          onSuccess: () => {
+            navigate(`/student/results/${attempt?.id}`, {
+              state: {
+                score,
+                timeTaken: totalTimeTaken,
+                results,
+                testTitle: attempt?.testTitle,
+              },
+            });
           }
-        });
-      });
+        }
+      );
     }
   };
 
@@ -249,7 +206,10 @@ export function TestTakingPage() {
     );
   };
 
-  if (isLoading) {
+
+  const isLoading = attemptLoading || (!!attempt?.currentQuestionId && questionLoading);
+
+  if (isLoading && !isCorrect) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-secondary via-background to-secondary/50">
         <div className="text-center">
@@ -260,13 +220,47 @@ export function TestTakingPage() {
     );
   }
 
-  if (!testData || !currentQuestion) {
+  if (!attemptId || (!attemptLoading && !attempt) || !attempt) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p>Test not found</p>
       </div>
     );
   }
+
+  if (attempt.status === 'completed') {
+    return <Navigate to={`/student/results/${attempt.id}`} />;
+  }
+
+
+  // if (!currentQuestion) {
+  //   const count = attempt.attemptedQuestionsCount ?? 0;
+  //   if (count >= attempt.totalQuestions) {
+  //     const totalTimeTaken = Math.floor((Date.now() - testStartTime) / 1000);
+  //     const correctCount = results.filter(r => r.correct).length;
+  //     const score = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
+  //     completeAttempt.mutateAsync({
+  //       attemptId: attempt.id,
+  //       metrics: {
+  //         score,
+  //         timeTakenSeconds: totalTimeTaken,
+  //         correctAnswers: correctCount,
+  //         totalQuestions,
+  //         hintsUsed: 0,
+  //       },
+  //     }).then(() =>
+  //       navigate(`/student/results/${attempt.id}`, {
+  //         state: { score, timeTaken: totalTimeTaken, results, testTitle: attempt.testTitle },
+  //       })
+  //     );
+  //     return null;
+  //   }
+  //   return (
+  //     <div className="min-h-screen flex items-center justify-center">
+  //       <p>No question to show. You may have completed this test.</p>
+  //     </div>
+  //   );
+  // }
 
   // Text-to-Speech Helper
   const speakText = (text: string) => {
@@ -290,7 +284,7 @@ export function TestTakingPage() {
       {/* Header */}
       <div className="max-w-3xl mx-auto mb-8">
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-xl font-bold">{testData.title}</h1>
+          <h1 className="text-xl font-bold">{attempt.testTitle ?? 'Test'}</h1>
           <Button variant="ghost" onClick={() => navigate('/student')}>
             <X className="w-5 h-5" />
           </Button>
@@ -300,175 +294,177 @@ export function TestTakingPage() {
         <div className="progress-kid">
           <div
             className="progress-kid-fill"
-            style={{ width: `${((currentQuestionIndex + 1) / questions.length) * 100}%` }}
+            style={{ width: `${totalQuestions > 0 ? Math.min(100, (currentQuestionNumber / totalQuestions) * 100) : 0}%` }}
           />
         </div>
         <p className="text-sm text-muted-foreground mt-2">
-          Question {currentQuestionIndex + 1} of {questions.length}
+          Question {currentQuestionNumber} of {totalQuestions}
         </p>
       </div>
 
       {/* Question Card */}
-      <motion.div
-        key={currentQuestion.id}
-        initial={{ opacity: 0, x: 50 }}
-        animate={{ opacity: 1, x: 0 }}
-        className="max-w-3xl mx-auto"
-      >
-        <div className="question-card">
-          <p className="text-kid-xl leading-relaxed mb-8">
-            {renderQuestion(currentQuestion.questionText)}
-          </p>
+      {currentQuestion &&
+        <motion.div
+          key={currentQuestion.id}
+          initial={{ opacity: 0, x: 50 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="max-w-3xl mx-auto"
+        >
+          <div className="question-card">
+            <p className="text-kid-xl leading-relaxed mb-8">
+              {renderQuestion(currentQuestion?.questionText)}
+            </p>
 
-          {/* Answer Input */}
-          <div className="mb-6">
-            <input
-              type="text"
-              value={answer}
-              onChange={(e) => setAnswer(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSubmitAnswer()}
-              placeholder="Type your answer here..."
-              className="input-kid"
-              autoFocus
-              disabled={isCorrect === true}
-            />
-          </div>
-
-          {/* Hints Display */}
-          {hintsUsed.length > 0 && (
-            <div className="mb-6 space-y-3">
-              {hintsUsed.map((hint, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="card-hint group relative pr-12"
-                >
-                  <div className="flex items-start gap-3">
-                    <Lightbulb className="w-5 h-5 text-kid-yellow mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium text-kid-purple">Hint {index + 1}</p>
-                      <p className="text-foreground">{hint}</p>
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => speakText(hint)}
-                    className="absolute right-2 top-2 rounded-full hover:bg-kid-purple/10 text-kid-purple opacity-0 group-hover:opacity-100 transition-opacity"
-                    title="Read Aloud"
-                  >
-                    <Volume2 className="w-4 h-4" />
-                  </Button>
-                </motion.div>
-              ))}
+            {/* Answer Input */}
+            <div className="mb-6">
+              <input
+                type="text"
+                value={answer}
+                onChange={(e) => setAnswer(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSubmitAnswer()}
+                placeholder="Type your answer here..."
+                className="input-kid"
+                autoFocus
+                disabled={isCorrect === true}
+              />
             </div>
-          )}
 
-          {/* Micro Learning Display */}
-          {showMicroLearning && microLearningContent && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="mb-6 p-6 bg-kid-blue/10 rounded-2xl border-2 border-kid-blue/30 relative group"
-            >
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => speakText(microLearningContent)}
-                className="absolute right-4 top-4 rounded-full hover:bg-kid-blue/20 text-kid-blue opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                title="Read Aloud"
-              >
-                <Volume2 className="w-5 h-5" />
-              </Button>
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-full bg-kid-blue/20 flex items-center justify-center flex-shrink-0">
-                  <BookOpen className="w-6 h-6 text-kid-blue" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-bold text-kid-blue text-lg mb-2">Let's Learn! 📚</p>
-                  <p className="text-foreground leading-relaxed text-lg mb-4">{microLearningContent}</p>
-
-
-
-                  {/* Lesson Files Display */}
-                  {lesson?.files && lesson.files.length > 0 && (
-                    <div className="mt-4 pt-4 border-t border-kid-blue/20">
-                      <p className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-2">
-                        <FileText className="w-4 h-4" />
-                        Study Material:
-                      </p>
-                      <div className="grid gap-2">
-                        {lesson.files.map((file, idx) => (
-                          <div
-                            key={idx}
-                            onClick={() => handleFileDownload(file.url)}
-                            className="flex items-center gap-3 p-3 bg-white rounded-xl border border-border hover:border-kid-blue transitions-all group cursor-pointer"
-                          >
-                            <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center text-orange-500">
-                              <FileText className="w-4 h-4" />
-                            </div>
-                            <span className="text-sm font-medium group-hover:text-kid-blue truncate">
-                              {file.name}
-                            </span>
-                            <ArrowRight className="w-4 h-4 text-muted-foreground ml-auto group-hover:translate-x-1 transition-transform" />
-                          </div>
-                        ))}
+            {/* Hints Display */}
+            {hintsUsed.length > 0 && (
+              <div className="mb-6 space-y-3">
+                {hintsUsed.map((hint, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="card-hint group relative pr-12"
+                  >
+                    <div className="flex items-start gap-3">
+                      <Lightbulb className="w-5 h-5 text-kid-yellow mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-kid-purple">Hint {index + 1}</p>
+                        <p className="text-foreground">{hint}</p>
                       </div>
                     </div>
-                  )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => speakText(hint)}
+                      className="absolute right-2 top-2 rounded-full hover:bg-kid-purple/10 text-kid-purple opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Read Aloud"
+                    >
+                      <Volume2 className="w-4 h-4" />
+                    </Button>
+                  </motion.div>
+                ))}
+              </div>
+            )}
 
-                  {/* AI Assist Follow-up */}
-                  <div className="mt-6 pt-4 border-t border-kid-blue/20">
-                    <label className="text-sm font-semibold text-kid-blue flex items-center gap-2 mb-2">
-                      <Sparkles className="w-4 h-4" /> AI Assistant (Ask any thing related to this question)
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={aiQuestion}
-                        onChange={(e) => setAiQuestion(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleAskAI()}
-                        placeholder="e.g., Can you explain the steps to solve this?"
-                        className="input-kid text-base py-3 flex-1"
-                        disabled={aiLoading}
-                      />
-                      <Button
-                        onClick={handleAskAI}
-                        disabled={!aiQuestion.trim() || aiLoading}
-                        className="py-6 px-8 bg-blue-400 hover:bg-blue-500 text-white rounded-xl text-base font-semibold"
-                      >
-                        {aiLoading ? "Thinking..." : "Ask"}
-                      </Button>
+            {/* Micro Learning Display */}
+            {showMicroLearning && microLearningContent && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="mb-6 p-6 bg-kid-blue/10 rounded-2xl border-2 border-kid-blue/30 relative group"
+              >
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => speakText(microLearningContent)}
+                  className="absolute right-4 top-4 rounded-full hover:bg-kid-blue/20 text-kid-blue opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                  title="Read Aloud"
+                >
+                  <Volume2 className="w-5 h-5" />
+                </Button>
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-full bg-kid-blue/20 flex items-center justify-center flex-shrink-0">
+                    <BookOpen className="w-6 h-6 text-kid-blue" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-kid-blue text-lg mb-2">Let's Learn! 📚</p>
+                    <p className="text-foreground leading-relaxed text-lg mb-4">{microLearningContent}</p>
+
+
+
+                    {/* Lesson Files Display */}
+                    {lesson?.files && lesson.files.length > 0 && (
+                      <div className="mt-4 pt-4 border-t border-kid-blue/20">
+                        <p className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-2">
+                          <FileText className="w-4 h-4" />
+                          Study Material:
+                        </p>
+                        <div className="grid gap-2">
+                          {lesson.files.map((file, idx) => (
+                            <div
+                              key={idx}
+                              onClick={() => handleFileDownload(file.url)}
+                              className="flex items-center gap-3 p-3 bg-white rounded-xl border border-border hover:border-kid-blue transitions-all group cursor-pointer"
+                            >
+                              <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center text-orange-500">
+                                <FileText className="w-4 h-4" />
+                              </div>
+                              <span className="text-sm font-medium group-hover:text-kid-blue truncate">
+                                {file.name}
+                              </span>
+                              <ArrowRight className="w-4 h-4 text-muted-foreground ml-auto group-hover:translate-x-1 transition-transform" />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* AI Assist Follow-up */}
+                    <div className="mt-6 pt-4 border-t border-kid-blue/20">
+                      <label className="text-sm font-semibold text-kid-blue flex items-center gap-2 mb-2">
+                        <Sparkles className="w-4 h-4" /> AI Assistant (Ask any thing related to this question)
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={aiQuestion}
+                          onChange={(e) => setAiQuestion(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && handleAskAI()}
+                          placeholder="e.g., Can you explain the steps to solve this?"
+                          className="input-kid text-base py-3 flex-1"
+                          disabled={aiLoading}
+                        />
+                        <Button
+                          onClick={handleAskAI}
+                          disabled={!aiQuestion.trim() || aiLoading}
+                          className="py-6 px-8 bg-blue-400 hover:bg-blue-500 text-white rounded-xl text-base font-semibold"
+                        >
+                          {aiLoading ? "Thinking..." : "Ask"}
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Submit Button */}
-          <Button
-            onClick={handleSubmitAnswer}
-            disabled={!answer.trim() || isCorrect === true || submitAnswer.isPending}
-            className="btn-kid w-full"
-          >
-            {submitAnswer.isPending ? (
-              'Checking...'
-            ) : isCorrect === true ? (
-              <>
-                <CheckCircle2 className="w-6 h-6 mr-2" />
-                Correct! 🎉
-              </>
-            ) : (
-              <>
-                Check My Answer
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </>
+              </motion.div>
             )}
-          </Button>
-        </div>
-      </motion.div>
+
+            {/* Submit Button */}
+            <Button
+              onClick={handleSubmitAnswer}
+              disabled={!answer.trim() || isCorrect === true || submitAnswer.isPending}
+              className="btn-kid w-full"
+            >
+              {submitAnswer.isPending ? (
+                'Checking...'
+              ) : isCorrect === true ? (
+                <>
+                  <CheckCircle2 className="w-6 h-6 mr-2" />
+                  Correct! 🎉
+                </>
+              ) : (
+                <>
+                  Check My Answer
+                  <ArrowRight className="w-5 h-5 ml-2" />
+                </>
+              )}
+            </Button>
+          </div>
+        </motion.div>
+      }
 
       {/* Wrong Answer Modal */}
       <AnimatePresence>
@@ -617,3 +613,4 @@ export function TestTakingPage() {
     </div>
   );
 }
+

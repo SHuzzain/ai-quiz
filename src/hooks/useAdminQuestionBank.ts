@@ -225,11 +225,27 @@ export function useAdminQuestionBank() {
     ) => {
       const idx = questionFields.findIndex((f) => f.id === qId);
       if (idx !== -1) {
-        const current = form.getValues(`generatedQuestions.${idx}`);
+        const current = form.getValues(
+          `generatedQuestions.${idx}`,
+        ) as QuestionBankItem;
+
+        const triggerFields = [
+          "title",
+          "answer",
+          "topic",
+          "concept",
+          "difficulty",
+        ];
+        const hasTriggerField = Object.keys(updates).some((key) =>
+          triggerFields.includes(key),
+        );
+
         updateQuestion(idx, {
           ...current,
           ...updates,
-          isDirty: true,
+          isDirty:
+            ("isDirty" in current && (current.isDirty as boolean)) ||
+            hasTriggerField,
         });
       }
     },

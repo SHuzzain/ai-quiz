@@ -1,5 +1,5 @@
 /**
- * Admin Lesson Management Page
+ * Admin Document Management Page
  */
 
 import { useState } from 'react';
@@ -45,7 +45,7 @@ export function AdminLessonsPage() {
       setFiles([]);
       toast({ title: 'Lesson uploaded successfully!' });
     } catch {
-      toast({ title: 'Failed to upload lesson', variant: 'destructive' });
+      toast({ title: 'Failed to upload document', variant: 'destructive' });
     }
   };
 
@@ -65,7 +65,7 @@ export function AdminLessonsPage() {
   const handleDelete = async (id: string) => {
     try {
       await deleteLesson.mutateAsync(id);
-      toast({ title: 'Lesson deleted' });
+      toast({ title: 'Document deleted' });
     } catch {
       toast({ title: 'Failed to delete', variant: 'destructive' });
     }
@@ -76,8 +76,8 @@ export function AdminLessonsPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Lesson Management</h1>
-            <p className="text-muted-foreground">Upload and manage lesson files (Max 3 files per lesson)</p>
+            <h1 className="text-3xl font-bold">Document Management</h1>
+            <p className="text-muted-foreground">Upload and manage documents (Max 3 files per document)</p>
           </div>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
@@ -88,12 +88,12 @@ export function AdminLessonsPage() {
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Upload New Lesson</DialogTitle>
+                <DialogTitle>Upload New Document</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 pt-4">
                 <div className="space-y-2">
                   <Label>Title *</Label>
-                  <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Lesson title" />
+                  <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Document title" />
                 </div>
                 <div className="space-y-2">
                   <Label>Description</Label>
@@ -124,12 +124,12 @@ export function AdminLessonsPage() {
         </div>
 
         {isLoading ? (
-          <p className="text-center py-12 text-muted-foreground">Loading lessons...</p>
+          <p className="text-center py-12 text-muted-foreground">Loading documents...</p>
         ) : !lessons?.length ? (
           <Card>
             <CardContent className="py-12 text-center text-muted-foreground">
               <GraduationCap className="w-10 h-10 mx-auto mb-3 opacity-50" />
-              <p>No lessons yet. Upload your first lesson!</p>
+              <p>No documents yet. Upload your first document!</p>
             </CardContent>
           </Card>
         ) : (

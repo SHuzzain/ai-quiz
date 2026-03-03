@@ -200,7 +200,7 @@ export function AIQuestionGenerator({
                 ) : (
                     <BrainCircuit className="w-4 h-4 mr-2" />
                 )}
-                {analysisResult ? "Adjust AI Generation" : "Analyze Lesson & Generate (AI)"}
+                {analysisResult ? "Adjust AI Generation" : "Analyze Document & Generate (AI)"}
             </Button>
 
             {/* Generation Configuration Drawer */}
@@ -219,130 +219,117 @@ export function AIQuestionGenerator({
 
                         <div className="p-4 flex-1 overflow-y-auto space-y-6">
                             {analysisResult && (
-                                <div className="grid md:grid-cols-3 gap-6">
-                                    {/* Analysis Summary */}
-                                    {/* <div className="md:col-span-1 space-y-4">
-                                        <div className="p-4 bg-muted/50 rounded-xl border space-y-3">
-                                            <Label className="text-xs uppercase tracking-wider text-muted-foreground font-bold">Content Summary</Label>
-                                            <p className="text-sm leading-relaxed">{analysisResult.summary}</p>
-                                            <div className="pt-2 flex flex-wrap gap-2">
-                                                <Badge variant="outline" className="bg-white border-primary/20 text-primary">{analysisResult.difficulty}</Badge>
-                                            </div>
-                                        </div>
-                                    </div> */}
+                                <div className="md:col-span-2 space-y-4">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Generation Variants</Label>
+                                        <Button variant="outline" size="sm" onClick={addConfiguration} className="h-7 text-xs border-primary/20 text-indigo-700 hover:bg-primary/10">
+                                            <Plus className="w-3 h-3 mr-1" /> Add Variant
+                                        </Button>
+                                    </div>
 
-                                    {/* Config Panels */}
-                                    <div className="md:col-span-3 space-y-4">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Generation Variants</Label>
-                                            <Button variant="outline" size="sm" onClick={addConfiguration} className="h-7 text-xs border-primary/20 text-indigo-700 hover:bg-primary/10">
-                                                <Plus className="w-3 h-3 mr-1" /> Add Variant
-                                            </Button>
-                                        </div>
+                                    <div className="space-y-4">
+                                        {configurations.map((config, idx) => (
+                                            <div key={idx} className="p-5 border-2 border-indigo-50 rounded-2xl bg-white space-y-4 relative shadow-sm hover:border-primary/20 transition-colors">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="absolute top-2 right-2 h-7 w-7 text-muted-foreground hover:text-destructive"
+                                                    onClick={() => removeConfiguration(idx)}
+                                                    disabled={configurations.length === 1}
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                </Button>
 
-                                        <div className="space-y-4">
-                                            {configurations.map((config, idx) => (
-                                                <div key={idx} className="p-5 border-2 border-indigo-50 rounded-2xl bg-white space-y-4 relative shadow-sm hover:border-primary/20 transition-colors">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="absolute top-2 right-2 h-7 w-7 text-muted-foreground hover:text-destructive"
-                                                        onClick={() => removeConfiguration(idx)}
-                                                        disabled={configurations.length === 1}
-                                                    >
-                                                        <Trash2 className="w-3.5 h-3.5" />
-                                                    </Button>
+                                                <div className="space-y-4 pt-4">
+                                                    <div className="space-y-2">
+                                                        <Label className="text-xs font-semibold">Base Question</Label>
+                                                        <Select
+                                                            value={config.baseQuestion || 'none'}
+                                                            onValueChange={(v) => updateConfiguration(idx, { baseQuestion: v === 'none' ? '' : v })}
+                                                        >
+                                                            <SelectTrigger className="h-auto py-2 px-3 text-left">
+                                                                <div className="line-clamp-2 pr-2 text-sm leading-relaxed whitespace-pre-wrap">
+                                                                    {config.baseQuestion || "No Base Question (Generate from scratch)..."}
+                                                                </div>
+                                                            </SelectTrigger>
+                                                            <SelectContent className="max-w-[500px] max-h-[300px]">
+                                                                {baseQuestions.map((bq, bIdx) => (
+                                                                    <SelectItem key={bIdx} value={bq.questionText} className="py-3 mt-1 border-t">
+                                                                        <div className="flex flex-col gap-1">
+                                                                            <small className="text-xs font-medium text-gray-400 uppercase">Extracted Question {bIdx + 1}</small>
+                                                                            <span className="text-sm text-foreground leading-snug break-words whitespace-normal">{bq.questionText}</span>
+                                                                        </div>
+                                                                    </SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
 
-                                                    <div className="space-y-4 pt-4">
+                                                    <div className="space-y-2">
+                                                        <Label className="text-xs font-semibold">Select Topics</Label>
+                                                        <MultiSelect
+                                                            options={TOPIC.map(t => ({ label: t, value: t }))}
+                                                            selected={config.topics}
+                                                            onChange={(vals) => updateConfiguration(idx, { topics: vals })}
+                                                            placeholder="Choose topics..."
+                                                        />
+                                                    </div>
+
+                                                    <div className="space-y-2">
+                                                        <Label className="text-xs font-semibold">Select Concepts</Label>
+                                                        <MultiSelect
+                                                            options={CONCEPT.map(c => ({ label: c, value: c }))}
+                                                            selected={config.concepts}
+                                                            onChange={(vals) => updateConfiguration(idx, { concepts: vals })}
+                                                            placeholder="Choose concepts..."
+                                                        />
+                                                    </div>
+
+                                                    <div className="grid grid-cols-3 gap-4">
                                                         <div className="space-y-2">
-                                                            <Label className="text-xs font-semibold">Base Question</Label>
+                                                            <Label className="text-xs font-semibold">Difficulty</Label>
                                                             <Select
-                                                                value={config.baseQuestion || 'none'}
-                                                                onValueChange={(v) => updateConfiguration(idx, { baseQuestion: v === 'none' ? '' : v })}
+                                                                value={String(config.difficulty)}
+                                                                onValueChange={(v) => updateConfiguration(idx, { difficulty: parseInt(v) })}
                                                             >
-                                                                <SelectTrigger className="h-auto py-2 px-3 text-left">
-                                                                    <div className="line-clamp-2 pr-2 text-sm leading-relaxed whitespace-pre-wrap">
-                                                                        {config.baseQuestion || "No Base Question (Generate from scratch)..."}
-                                                                    </div>
+                                                                <SelectTrigger className="h-9">
+                                                                    <SelectValue />
                                                                 </SelectTrigger>
-                                                                <SelectContent className="max-w-[500px] max-h-[300px]">
-                                                                    {baseQuestions.map((bq, bIdx) => (
-                                                                        <SelectItem key={bIdx} value={bq.questionText} className="py-3 mt-1 border-t">
-                                                                            <div className="flex flex-col gap-1">
-                                                                                <small className="text-xs font-medium text-gray-400 uppercase">Extracted Question {bIdx + 1}</small>
-                                                                                <span className="text-sm text-foreground leading-snug break-words whitespace-normal">{bq.questionText}</span>
-                                                                            </div>
-                                                                        </SelectItem>
+                                                                <SelectContent>
+                                                                    {[1, 2, 3, 4, 5].map(v => (
+                                                                        <SelectItem key={v} value={String(v)}>Level {v}</SelectItem>
                                                                     ))}
                                                                 </SelectContent>
                                                             </Select>
                                                         </div>
-
                                                         <div className="space-y-2">
-                                                            <Label className="text-xs font-semibold">Select Topics</Label>
-                                                            <MultiSelect
-                                                                options={TOPIC.map(t => ({ label: t, value: t }))}
-                                                                selected={config.topics}
-                                                                onChange={(vals) => updateConfiguration(idx, { topics: vals })}
-                                                                placeholder="Choose topics..."
+                                                            <Label className="text-xs font-semibold">Marks</Label>
+                                                            <Input
+                                                                type="number"
+                                                                min={1}
+                                                                value={config.marks}
+                                                                onChange={(e) => updateConfiguration(idx, { marks: parseInt(e.target.value) })}
+                                                                className="h-9"
                                                             />
                                                         </div>
-
                                                         <div className="space-y-2">
-                                                            <Label className="text-xs font-semibold">Select Concepts</Label>
-                                                            <MultiSelect
-                                                                options={CONCEPT.map(c => ({ label: c, value: c }))}
-                                                                selected={config.concepts}
-                                                                onChange={(vals) => updateConfiguration(idx, { concepts: vals })}
-                                                                placeholder="Choose concepts..."
+                                                            <Label className="text-xs font-semibold">No. of Questions</Label>
+                                                            <Input
+                                                                type="number"
+                                                                min={1}
+                                                                max={20}
+                                                                value={config.variantCount}
+                                                                onChange={(e) => updateConfiguration(idx, { variantCount: parseInt(e.target.value) })}
+                                                                className="h-9"
                                                             />
-                                                        </div>
-
-                                                        <div className="grid grid-cols-3 gap-4">
-                                                            <div className="space-y-2">
-                                                                <Label className="text-xs font-semibold">Difficulty</Label>
-                                                                <Select
-                                                                    value={String(config.difficulty)}
-                                                                    onValueChange={(v) => updateConfiguration(idx, { difficulty: parseInt(v) })}
-                                                                >
-                                                                    <SelectTrigger className="h-9">
-                                                                        <SelectValue />
-                                                                    </SelectTrigger>
-                                                                    <SelectContent>
-                                                                        {[1, 2, 3, 4, 5].map(v => (
-                                                                            <SelectItem key={v} value={String(v)}>Level {v}</SelectItem>
-                                                                        ))}
-                                                                    </SelectContent>
-                                                                </Select>
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <Label className="text-xs font-semibold">Marks</Label>
-                                                                <Input
-                                                                    type="number"
-                                                                    min={1}
-                                                                    value={config.marks}
-                                                                    onChange={(e) => updateConfiguration(idx, { marks: parseInt(e.target.value) })}
-                                                                    className="h-9"
-                                                                />
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <Label className="text-xs font-semibold">Count</Label>
-                                                                <Input
-                                                                    type="number"
-                                                                    min={1}
-                                                                    max={20}
-                                                                    value={config.variantCount}
-                                                                    onChange={(e) => updateConfiguration(idx, { variantCount: parseInt(e.target.value) })}
-                                                                    className="h-9"
-                                                                />
-                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
-                                            ))}
-                                        </div>
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
+
                             )}
                         </div>
 

@@ -30,7 +30,7 @@ const navItems = [
   { path: '/admin', icon: BarChart3, label: 'Dashboard', exact: true },
   { path: '/admin/users', icon: Users, label: 'Users' },
   { path: '/admin/tests', icon: FileText, label: 'Tests' },
-  { path: '/admin/lessons', icon: GraduationCap, label: 'Lessons' },
+  { path: '/admin/lessons', icon: GraduationCap, label: 'Document' },
   { path: '/admin/reports', icon: ClipboardList, label: 'Reports' },
   { path: '/admin/analytics', icon: BarChart3, label: 'Analytics' },
   { path: '/admin/questions', icon: Database, label: 'Question Bank' },

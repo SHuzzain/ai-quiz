@@ -9,6 +9,8 @@ import {
   Save,
   Loader2,
   Calculator,
+  Search,
+  Download,
 } from 'lucide-react';
 import { AdminLayout } from '@/components/layout';
 import { QuestionsManager } from '@/components/admin/questions/QuestionsManager';
@@ -19,7 +21,6 @@ import {
   useAddQuestion,
   useUpdateQuestion,
   useDeleteQuestion,
-  useLessons,
   useEvaluateQuestionQuality,
   useRegenerateQuestionVariant,
   useQuestionBankSets,
@@ -36,9 +37,20 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import { MultiSelect } from '@/components/ui/multi-select';
 import { toast } from 'sonner';
-import { AIQuestionGenerator } from '@/components/admin/ai-generator/AIQuestionGenerator';
 import { QuestionBankItem } from '@/types';
+import { supabase } from '@/integrations/supabase/client';
 
 interface QuestionForm {
   id: string;
@@ -75,18 +87,27 @@ export function CreateTestPage() {
   const deleteQuestionApi = useDeleteQuestion();
   const evaluateQuestion = useEvaluateQuestionQuality();
   const regenerateQuestion = useRegenerateQuestionVariant();
-  const { data: lessons } = useLessons();
 
   // Form State
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [duration, setDuration] = useState(15);
   const [scheduledDate, setScheduledDate] = useState('');
-  const [lessonId, setLessonId] = useState('');
   const [totalMarks, setTotalMarks] = useState(0);
-  const { data: questionBankSets } = useQuestionBankSets({ lessonId });
+  const [numberOfQuestions, setNumberOfQuestions] = useState<number | ''>('');
+  const { data: questionBankSets } = useQuestionBankSets();
   const [questions, setQuestions] = useState<QuestionForm[]>([]);
 
+  // Import from Question Bank: 1) Select banks 2) Topics/Concepts from banks (no dupes) 3) Button opens modal
+  const [selectedBankIds, setSelectedBankIds] = useState<string[]>([]);
+  const [selectedImportTopics, setSelectedImportTopics] = useState<string[]>([]);
+  const [selectedImportConcepts, setSelectedImportConcepts] = useState<string[]>([]);
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const MODAL_ANY = '__any__';
+  const [modalSearch, setModalSearch] = useState('');
+  const [modalDifficulty, setModalDifficulty] = useState<string>('__any__');
+  const [modalMark, setModalMark] = useState<string>('__any__');
+  const [selectedImportKeys, setSelectedImportKeys] = useState<Set<string>>(new Set());
 
   // Track initial questions for diffing in edit mode
   const [initialQuestionIds, setInitialQuestionIds] = useState<Set<string>>(new Set());
@@ -95,7 +116,15 @@ export function CreateTestPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [evaluatingId, setEvaluatingId] = useState<string | null>(null);
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
-  const [lessonContent, setLessonContent] = useState('');
+
+
+  useEffect(() => {
+    supabase.auth.stopAutoRefresh();
+
+    return () => {
+      supabase.auth.startAutoRefresh();
+    }
+  }, []);
 
   // Populate form in Edit Mode
   useEffect(() => {
@@ -104,7 +133,6 @@ export function CreateTestPage() {
       setDescription(existingTest.description || '');
       setDuration(existingTest.duration);
       setScheduledDate(new Date(existingTest.scheduledDate).toISOString().split('T')[0]);
-      setLessonId(existingTest.lessonId || '');
 
       const formattedQuestions = existingTest.questions.map(q => ({
         id: q.id,
@@ -122,6 +150,9 @@ export function CreateTestPage() {
       setQuestions(formattedQuestions);
       setInitialQuestionIds(new Set(formattedQuestions.map(q => q.id)));
       setTotalMarks(existingTest.totalMark || 0);
+      setNumberOfQuestions(
+        existingTest.numberOfQuestions != null ? existingTest.numberOfQuestions : '',
+      );
     }
   }, [existingTest, isEditMode]);
 
@@ -195,7 +226,7 @@ export function CreateTestPage() {
     setRegeneratingId(id);
     try {
       const result = await regenerateQuestion.mutateAsync({
-        documentText: lessonContent,
+        documentText: "",
         currentQuestion: {
           title: q.questionText,
           answer: q.correctAnswer,
@@ -260,6 +291,87 @@ export function CreateTestPage() {
     toast.success(`Added ${finalQuestions.length} questions to your test!`);
   };
 
+  // Questions only from selected question bank(s)
+  const questionsFromSelectedBanks = (() => {
+    if (!questionBankSets?.length || !selectedBankIds.length) return [];
+    const list: { key: string; setTitle: string; item: QuestionBankItem }[] = [];
+    questionBankSets
+      .filter((s) => selectedBankIds.includes(s.id))
+      .forEach((set) => {
+        (set.questions || []).forEach((item, i) => {
+          list.push({ key: `${set.id}-${i}`, setTitle: set.title, item });
+        });
+      });
+    return list;
+  })();
+
+  // Unique topics and concepts from selected banks only (no duplicates)
+  const uniqueTopicsFromBanks = (() => {
+    const topics = questionsFromSelectedBanks.map((x) => x.item.topic).filter(Boolean);
+    return Array.from(new Set(topics)) as string[];
+  })();
+  const uniqueConceptsFromBanks = (() => {
+    const concepts = questionsFromSelectedBanks.map((x) => x.item.concept).filter(Boolean);
+    return Array.from(new Set(concepts)) as string[];
+  })();
+
+  // Items for modal: selected banks + filter by selected topics/concepts
+  const modalBaseItems = questionsFromSelectedBanks.filter(({ item }) => {
+    if (selectedImportTopics.length && !selectedImportTopics.includes(item.topic)) return false;
+    if (selectedImportConcepts.length && !selectedImportConcepts.includes(item.concept)) return false;
+    return true;
+  });
+
+  // Inside modal: filter by search, difficulty, mark
+  const modalFilteredItems = modalBaseItems.filter(({ item }) => {
+    const q = modalSearch.trim().toLowerCase();
+    if (q) {
+      const match = (item.title || '').toLowerCase().includes(q) || (item.answer || '').toLowerCase().includes(q);
+      if (!match) return false;
+    }
+    if (modalDifficulty && modalDifficulty !== MODAL_ANY && String(item.difficulty) !== modalDifficulty) return false;
+    if (modalMark && modalMark !== MODAL_ANY && String(item.marks) !== modalMark) return false;
+    return true;
+  });
+
+  const handleSelectAllImport = () => {
+    setSelectedImportKeys(new Set(modalFilteredItems.map((x) => x.key)));
+  };
+
+  const handleClearImportSelection = () => {
+    setSelectedImportKeys(new Set());
+  };
+
+  const handleToggleImportItem = (key: string) => {
+    setSelectedImportKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const handleImportSelected = () => {
+    const toImport = Array.from(selectedImportKeys)
+      .map((key) => questionsFromSelectedBanks.find((x) => x.key === key)?.item)
+      .filter((q): q is QuestionBankItem => !!q);
+    if (toImport.length === 0) {
+      toast.error('Select at least one question to import.');
+      return;
+    }
+    commitGeneratedQuestions(toImport);
+    setSelectedImportKeys(new Set());
+    setImportModalOpen(false);
+  };
+
+  const openImportModal = () => {
+    setSelectedImportKeys(new Set());
+    setModalSearch('');
+    setModalDifficulty(MODAL_ANY);
+    setModalMark(MODAL_ANY);
+    setImportModalOpen(true);
+  };
+
   const handleSave = async () => {
     if (!title || !scheduledDate || questions.length === 0) {
       toast.error('Please fill in required fields (Title, Date) and add at least one question.');
@@ -283,9 +395,10 @@ export function CreateTestPage() {
             description,
             duration,
             scheduledDate: new Date(scheduledDate),
-            lessonId: lessonId || undefined,
             questionCount: questions.length,
             totalMark: totalMarks,
+            numberOfQuestions:
+              numberOfQuestions === '' ? undefined : Number(numberOfQuestions),
             ...(isToday ? { status: 'active' } : {})
           }
         });
@@ -331,7 +444,6 @@ export function CreateTestPage() {
           description,
           duration,
           scheduledDate: new Date(scheduledDate),
-          lessonId,
           totalMark: totalMarks,
           status: isToday ? 'active' : 'draft',
         });
@@ -353,6 +465,14 @@ export function CreateTestPage() {
               working: q.working || '',
               difficultyReason: q.difficultyReason || '',
             },
+          });
+        }
+        const numQ =
+          numberOfQuestions === '' ? undefined : Number(numberOfQuestions);
+        if (numQ != null) {
+          await updateTest.mutateAsync({
+            testId: test.id,
+            data: { numberOfQuestions: numQ },
           });
         }
         toast.success("Test created successfully!");
@@ -409,7 +529,7 @@ export function CreateTestPage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="date">Date *</Label>
                     <Input
@@ -429,6 +549,10 @@ export function CreateTestPage() {
                       min={5}
                     />
                   </div>
+
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="totalMark">Total Mark</Label>
                     <div className="flex gap-2">
@@ -449,64 +573,74 @@ export function CreateTestPage() {
                       </Button>
                     </div>
                   </div>
+                  <div className="space-y-3">
+                    <Label htmlFor="numberOfQuestions">Question Limit</Label>
+                    <Input
+                      id="numberOfQuestions"
+                      type="number"
+                      min={1}
+                      max={Math.max(questions.length, 1)}
+                      value={numberOfQuestions === '' ? '' : numberOfQuestions}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setNumberOfQuestions(v === '' ? '' : parseInt(v, 10) || '');
+                      }}
+                      placeholder={`eg: ${String(questions.length || '10')} questions`}
+                    />
+                  </div>
+
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Assign Lesson {isEditMode ? '(Optional)' : '*'}</Label>
-                  <Select value={lessonId} onValueChange={setLessonId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a lesson to generate from" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {lessons?.map((lesson) => (
-                        <SelectItem key={lesson.id} value={lesson.id}>
-                          {lesson.title}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    Required for AI generation using lesson files.
-                  </p>
-                </div>
-
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <Label>Import from Question Bank</Label>
-                  <Select
-                    onValueChange={(setId) => {
-                      const selectedSet = questionBankSets?.find(s => s.id === setId);
-                      if (selectedSet) {
-                        commitGeneratedQuestions(selectedSet.questions);
-                        toast.success(`Imported ${selectedSet.questions.length} questions from "${selectedSet.title}"`);
-                      }
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a question set to import" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {questionBankSets?.length === 0 && (
-                        <div className="p-2 text-xs text-center text-muted-foreground">No sets found for this lesson</div>
-                      )}
-                      {questionBankSets?.map((set) => (
-                        <SelectItem key={set.id} value={set.id}>
-                          {set.title} ({set.questions.length} questions)
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                   <p className="text-xs text-muted-foreground">
-                    Select a pre-generated set to append to your test.
+                    Select question bank(s), then topic(s) and concept(s). Open the modal to choose questions and import.
                   </p>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Question Bank</Label>
+                    <MultiSelect
+                      options={(questionBankSets || []).map((s) => ({ label: `${s.title} (${(s.questions || []).length})`, value: s.id }))}
+                      selected={selectedBankIds}
+                      onChange={setSelectedBankIds}
+                      placeholder="Select question bank(s)..."
+                    />
+                  </div>
+                  {selectedBankIds.length > 0 && (
+                    <>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Topic</Label>
+                          <MultiSelect
+                            options={uniqueTopicsFromBanks.map((t) => ({ label: t, value: t }))}
+                            selected={selectedImportTopics}
+                            onChange={setSelectedImportTopics}
+                            placeholder="All topics"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Concept</Label>
+                          <MultiSelect
+                            options={uniqueConceptsFromBanks.map((c) => ({ label: c, value: c }))}
+                            selected={selectedImportConcepts}
+                            onChange={setSelectedImportConcepts}
+                            placeholder="All concepts"
+                          />
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={questions.length ? 'secondary' : 'default'}
+                        onClick={openImportModal}
+                        className="w-full"
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        View & Select Questions
+                      </Button>
+                    </>
+                  )}
                 </div>
 
-                <div className="pt-2">
-                  <AIQuestionGenerator
-                    lessonId={lessonId}
-                    onQuestionsCommitted={commitGeneratedQuestions}
-                    onExtractedText={setLessonContent}
-                  />
-                </div>
               </CardContent>
             </Card>
 
@@ -548,6 +682,106 @@ export function CreateTestPage() {
             </Button>
           </div>
         </div>
+
+        <Dialog open={importModalOpen} onOpenChange={setImportModalOpen} >
+          <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+            <DialogHeader>
+              <DialogTitle>Import questions</DialogTitle>
+              <DialogDescription>
+                Search and filter, then select questions to add to your test.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 flex-1 min-h-0 flex flex-col">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by question or answer..."
+                  value={modalSearch}
+                  onChange={(e) => setModalSearch(e.target.value)}
+                  className="pl-8"
+                />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Difficulty</Label>
+                  <Select value={modalDifficulty} onValueChange={setModalDifficulty}>
+                    <SelectTrigger className="w-[120px]">
+                      <SelectValue placeholder="Any" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={MODAL_ANY}>Any</SelectItem>
+                      {Array.from(new Set(modalBaseItems.map((x) => x.item.difficulty))).sort((a, b) => a - b).map((d) => (
+                        <SelectItem key={d} value={String(d)}>{d}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Mark</Label>
+                  <Select value={modalMark} onValueChange={setModalMark}>
+                    <SelectTrigger className="w-[100px]">
+                      <SelectValue placeholder="Any" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={MODAL_ANY}>Any</SelectItem>
+                      {Array.from(new Set(modalBaseItems.map((x) => x.item.marks))).sort((a, b) => a - b).map((m) => (
+                        <SelectItem key={m} value={String(m)}>{m}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-muted-foreground">
+                  {modalFilteredItems.length} question(s) • {selectedImportKeys.size} selected
+                </span>
+                <div className="flex gap-2">
+                  <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={handleSelectAllImport}>
+                    Select all
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={handleClearImportSelection}>
+                    Clear
+                  </Button>
+                </div>
+              </div>
+              <div className="h-full rounded-md p-2 w-full  ">
+                <div className="flex-1 rounded-md border  h-[450px] overflow-auto">
+                  {modalFilteredItems.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">No questions match the filters.</p>
+                  ) : (
+                    <div className="space-y-1">
+                      {modalFilteredItems.map(({ key, setTitle, item }) => (
+                        <label
+                          key={key}
+                          className="flex items-start gap-2 p-2 rounded hover:bg-muted/50 cursor-pointer text-sm"
+                        >
+                          <Checkbox
+                            checked={selectedImportKeys.has(key)}
+                            onCheckedChange={() => handleToggleImportItem(key)}
+                          />
+                          <span className="flex-1 min-w-0 line-clamp-2">
+                            {item.title || 'Untitled question'}
+                            <span className="text-muted-foreground text-xs ml-1">({setTitle}) · D{item.difficulty} M{item.marks}</span>
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                onClick={handleImportSelected}
+                disabled={selectedImportKeys.size === 0}
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Import selected ({selectedImportKeys.size})
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </AdminLayout>
   );

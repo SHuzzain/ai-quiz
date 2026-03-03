@@ -12,7 +12,7 @@ export function StudentTestsPage() {
     const navigate = useNavigate();
     const { data: user } = useCurrentUser();
     const { data: tests, isLoading: testsLoading } = useTests({ status: "active" });
-    const { data: attempts, isLoading: attemptsLoading } = useStudentAttempts(user?.id || "");
+    const { data: attempts, isLoading: attemptsLoading } = useStudentAttempts(user?.id);
     const startAttempt = useStartAttempt();
 
     const [search, setSearch] = useState("");
@@ -24,13 +24,13 @@ export function StudentTestsPage() {
         const activeAttempt = attempts?.find(a => a.testId === testId && a.status === "in_progress");
 
         if (activeAttempt) {
-            navigate(`/student/test/${testId}`);
+            navigate(`/student/test/${activeAttempt.id}`);
             return;
         }
 
         try {
-            await startAttempt.mutateAsync({ testId, studentId: user.id });
-            navigate(`/student/test/${testId}`);
+            const attemptId = await startAttempt.mutateAsync({ testId, studentId: user.id });
+            navigate(`/student/test/${attemptId}`);
         } catch (error) {
             console.error("Failed to start test:", error);
         }
@@ -122,7 +122,7 @@ export function StudentTestsPage() {
                                         <Button
                                             onClick={() => handleStartTest(test.id)}
                                             className={`w-full gap-2 ${isResume ? "bg-indigo-600 hover:bg-indigo-700" :
-                                                    isReattempt ? "bg-emerald-600 hover:bg-emerald-700" : ""
+                                                isReattempt ? "bg-emerald-600 hover:bg-emerald-700" : ""
                                                 }`}
                                         >
                                             {isResume ? (

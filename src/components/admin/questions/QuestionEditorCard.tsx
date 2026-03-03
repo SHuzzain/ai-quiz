@@ -62,6 +62,7 @@ export function QuestionEditorCard({
                     )}
                 </div>
                 <div className="flex items-center gap-2">
+                    {/* Hidden: Evaluate with AI – uncomment to re-enable
                     <Button
                         variant="ghost"
                         size="sm"
@@ -76,6 +77,7 @@ export function QuestionEditorCard({
                         )}
                         AI Evaluate
                     </Button>
+                    */}
                     <Button
                         variant="ghost"
                         size="icon"
@@ -236,7 +238,7 @@ export function QuestionEditorCard({
                     </motion.div>
                 )}
 
-                {/* Regeneration Action */}
+                {/* Hidden: Regenerate with AI – uncomment to re-enable
                 {data.isDirty && (
                     <div className="flex justify-end pt-2">
                         <Button
@@ -254,6 +256,7 @@ export function QuestionEditorCard({
                         </Button>
                     </div>
                 )}
+                */}
             </div>
         </motion.div>
     );

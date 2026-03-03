@@ -38,7 +38,7 @@ export function ConfigurationCard({
                 </div>
 
                 <div className="space-y-2">
-                    <Label>Assign Lesson *</Label>
+                    <Label>Select Document *</Label>
                     <Controller
                         name={"lessonId"}
                         control={control}
@@ -55,7 +55,7 @@ export function ConfigurationCard({
                             </Select>
                         )}
                     />
-                    <p className="text-xs text-muted-foreground">Select a lesson to analyze its documents.</p>
+                    <p className="text-xs text-muted-foreground">Select a document to analyze its content.</p>
                 </div>
 
                 <Button

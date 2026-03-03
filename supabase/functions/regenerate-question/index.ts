@@ -16,13 +16,14 @@ const openai = createOpenAI({ apiKey });
 const RequestSchema = z.object({
   documentText: z.string().optional(),
   currentQuestion: z.object({
-    title: z.string().optional(),
-    answer: z.string().optional(),
-    topic: z.string().optional(),
-    concept: z.string().optional(),
-    difficulty: z.number().min(1).max(5).optional(),
-    marks: z.number().optional(),
-    working: z.string().optional(),
+    title: z.string(),
+    answer: z.string(),
+    topic: z.string(),
+    concept: z.string(),
+    difficulty: z.number().min(1).max(5),
+    marks: z.number(),
+    working: z.string(),
+    difficultyReason: z.string().optional(),
     isDirtyFields: z.record(z.string(), z.boolean()).optional(),
   }),
 });
@@ -50,31 +51,31 @@ CRITICAL RULES:
 
 1. If a field is marked TRUE in isDirtyFields,
    you MUST return the EXACT SAME VALUE (character-by-character).
-   Do NOT modify wording of that field.
+   Do NOT modify wording.
 
-2. If difficulty is marked TRUE,
-   you are allowed to increase or decrease structural complexity
-   to match the requested difficulty level.
-   You may:
-   - Add word problem context
-   - Increase number size
-   - Add multi-step reasoning
-   - Introduce interpretation steps
-   But you must keep the same topic and concept.
+2. Topic and concept must ALWAYS match exactly.
 
-3. If difficulty is NOT marked TRUE,
-   preserve the original structural complexity.
+3. If difficulty is marked TRUE:
+   - You may adjust structural complexity.
+   - Increase/decrease number size.
+   - Add/remove steps.
+   - Introduce interpretation.
+   - Keep same topic and concept.
 
-4. Topic and concept must always match the provided values exactly.
+4. If difficulty is NOT marked TRUE:
+   - Preserve same structural complexity.
+   - Only rephrase or change numbers/context.
 
-5. The "answer" field must contain ONLY the final answer.
+5. "answer" must contain ONLY the final answer.
    No explanation text.
 
 6. All explanation must go in "working".
 
-7. The regenerated question must not be identical wording.
+7. The regenerated title must not be identical wording.
 
-8. Output strict JSON only.
+8. Maintain same marks unless marked dirty.
+
+9. Output STRICT JSON matching schema.
 `;
 
 /* -------------------- SERVER -------------------- */
@@ -86,40 +87,66 @@ serve(async (req) => {
   try {
     const body = await req.json();
     const payload = RequestSchema.parse(body);
-
     const q = payload.currentQuestion;
 
+    const dirtyFields = q.isDirtyFields ?? {};
+
     const prompt = `
-Regenerate the question using the rules.
+Regenerate the question following all system rules.
 
---- Current Question ---
-Title: ${q.title ?? "N/A"}
-Topic: ${q.topic ?? "N/A"}
-Concept: ${q.concept ?? "N/A"}
-Difficulty: ${q.difficulty ?? "N/A"}
-Marks: ${q.marks ?? "N/A"}
+--- CURRENT QUESTION ---
+${JSON.stringify(
+      {
+        title: q.title,
+        answer: q.answer,
+        topic: q.topic,
+        concept: q.concept,
+        difficulty: q.difficulty,
+        marks: q.marks,
+        working: q.working,
+        difficultyReason: q.difficultyReason ?? "",
+      },
+      null,
+      2,
+    )}
 
---- Edited Fields ---
-${JSON.stringify(q.isDirtyFields ?? {}, null, 2)}
+--- DIRTY FIELDS ---
+${JSON.stringify(dirtyFields, null, 2)}
 
---- Source Context ---
+--- SOURCE CONTEXT ---
 ${payload.documentText?.substring(0, 3000) ?? "None provided."}
+
+Important:
+- If a field is dirty, copy it EXACTLY.
+- If not dirty, regenerate logically.
 `;
 
     const result = await generateText({
-      model: openai("gpt-4o"),
+      model: openai("gpt-5"), // upgraded to match question bank
       system: SYSTEM_PROMPT,
       prompt,
       output: Output.object({ schema: ResponseSchema }),
-      temperature: 0.3, // Lower = more deterministic
+      temperature: 0.2, // more deterministic
     });
 
-    return new Response(JSON.stringify(result.output), {
+    let regenerated = result.output;
+
+    /* -------------------- ENFORCE HARD CONSTRAINTS -------------------- */
+    regenerated = {
+      ...regenerated,
+      topic: q.topic,
+      concept: q.concept,
+      marks: dirtyFields.marks ? q.marks : q.marks,
+      difficulty: dirtyFields.difficulty ? q.difficulty : q.difficulty,
+    };
+
+    return new Response(JSON.stringify(regenerated), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
   } catch (error) {
     console.error("Regenerate question error:", error);
+
     return new Response(
       JSON.stringify({
         error:
@@ -128,7 +155,7 @@ ${payload.documentText?.substring(0, 3000) ?? "None provided."}
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 400,
-      },
+      }
     );
   }
 });

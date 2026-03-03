@@ -25,7 +25,6 @@ export const CONCEPT = [
   "Multiplication of whole number with fraction",
   "Division of whole number with fraction",
   "Equivalent fractions",
-  "Four Operations",
   "Conversion to fraction",
   "Equivalent ratio",
 ];

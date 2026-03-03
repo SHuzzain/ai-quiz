@@ -54,6 +54,8 @@ export interface Test {
   lessonId?: string;
   totalMark?: number;
   updatedAt?: Date;
+  /** How many questions the student attempts; must be <= questionCount (pool size). */
+  numberOfQuestions?: number | null;
 }
 
 export interface Question {
@@ -94,6 +96,12 @@ export interface TestAttempt {
   hintsUsed: number;
   timeTakenSeconds?: number;
   totalMark?: number;
+  /** For adaptive tests: question currently shown (resume). */
+  currentQuestionId?: string | null;
+  /** Number of questions answered so far. */
+  questionsAttemptedCount: number;
+  /** Test title (when loaded with attempt, e.g. getTestAttempt). */
+  testTitle?: string;
 
   // AI & Advanced Metrics
   basicScore?: number;
