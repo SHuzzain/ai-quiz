@@ -200,7 +200,7 @@ export default function AdminQuestionBankDetailPage() {
                 }
             }
         }
-    }, [set, form, lessons, analyzeMutation]);
+    }, [set]);
 
     const handleSave = async (data: VariantGenerationForm) => {
         if (!id) return;
