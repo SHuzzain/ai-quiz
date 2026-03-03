@@ -12,16 +12,18 @@ import {
   Sparkles,
   CheckCircle2
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { StudentLayout } from '@/components/layout';
 import { useAuth } from '@/hooks/useAuth';
-import { useUpcomingTests, useStudentAttempts } from '@/hooks/useApi';
+import { useUpcomingTests, useStudentAttempts, useStartAttempt } from '@/hooks/useApi';
 import { Button } from '@/components/ui/button';
 
 export function StudentDashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { data: upcomingTests } = useUpcomingTests(user?.id || '');
   const { data: attempts } = useStudentAttempts(user?.id || '');
+  const startAttempt = useStartAttempt();
 
   // Calculate stats from real data
   const completedAttempts = attempts?.filter(a => a.status === 'completed') || [];
@@ -75,6 +77,26 @@ export function StudentDashboard() {
   };
 
   const streak = calculateStreak();
+
+
+  const handleStartTest = async (testId: string) => {
+    if (!user) return;
+
+    // Check if there is already an active attempt
+    const activeAttempt = attempts?.find(a => a.testId === testId && a.status === "in_progress");
+
+    if (activeAttempt) {
+      navigate(`/student/test/${activeAttempt.id}`);
+      return;
+    }
+
+    try {
+      const attemptId = await startAttempt.mutateAsync({ testId, studentId: user.id });
+      navigate(`/student/test/${attemptId}`);
+    } catch (error) {
+      console.error("Failed to start test:", error);
+    }
+  };
 
   return (
     <StudentLayout>
@@ -185,7 +207,7 @@ export function StudentDashboard() {
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <BookOpen className="w-4 h-4" />
-                          {test.questionCount} questions
+                          {test.numberOfQuestions || test.questionCount} questions
                         </span>
                         <span className="flex items-center gap-1">
                           <Clock className="w-4 h-4" />
@@ -195,24 +217,25 @@ export function StudentDashboard() {
                     </div>
                   </div>
                   <div className="mt-4">
-                    <Link to={`/student/test/${test.id}`}>
-                      <Button
-                        className={`w-full btn-kid !py-4 group-hover:scale-[1.02] ${inProgressAttempt ? 'bg-kid-orange hover:bg-kid-orange/90' : ''
-                          }`}
-                      >
-                        {inProgressAttempt ? (
-                          <>
-                            Continue Test
-                            <ArrowRight className="w-5 h-5 ml-2" />
-                          </>
-                        ) : (
-                          <>
-                            Start Test
-                            <ArrowRight className="w-5 h-5 ml-2" />
-                          </>
-                        )}
-                      </Button>
-                    </Link>
+
+                    <Button
+                      onClick={() => handleStartTest(test.id)}
+                      className={`w-full btn-kid !py-4 group-hover:scale-[1.02] ${inProgressAttempt ? 'bg-kid-orange hover:bg-kid-orange/90' : ''
+                        }`}
+                    >
+                      {inProgressAttempt ? (
+                        <>
+                          Continue Test
+                          <ArrowRight className="w-5 h-5 ml-2" />
+                        </>
+                      ) : (
+                        <>
+                          Start Test
+                          <ArrowRight className="w-5 h-5 ml-2" />
+                        </>
+                      )}
+                    </Button>
+
                   </div>
                 </motion.div>
               );

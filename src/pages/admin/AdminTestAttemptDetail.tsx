@@ -143,10 +143,10 @@ export function AdminTestAttemptDetail() {
                             <CardTitle className="text-sm font-medium text-muted-foreground">Performance</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-2">
-                            <div className="flex justify-between">
+                            {/* <div className="flex justify-between">
                                 <span className="text-sm">Correct answers</span>
                                 <span className="font-bold">{attempt.correctAnswers} / {attempt.totalQuestions}</span>
-                            </div>
+                            </div> */}
                             <div className="flex justify-between">
                                 <span className="text-sm">First try</span>
                                 <span className="font-bold">

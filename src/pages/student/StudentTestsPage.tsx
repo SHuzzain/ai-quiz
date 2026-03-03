@@ -113,7 +113,7 @@ export function StudentTestsPage() {
                                             </div>
                                             <div className="flex items-center gap-1">
                                                 <HelpCircle className="w-4 h-4" />
-                                                <span>{test.questionCount || "?"} Qs</span>
+                                                <span>{test.numberOfQuestions || test.questionCount || "?"} Qs</span>
                                             </div>
                                         </div>
                                     </CardContent>

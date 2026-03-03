@@ -571,15 +571,21 @@ export async function submitAnswer(data: {
   if (isCorrect) {
     const { data: attemptRow } = await supabase
       .from("test_attempts")
-      .select("questions_attempted_count")
+      .select("questions_attempted_count, total_questions")
       .eq("id", data.attemptId)
       .single();
 
     if (attemptRow) {
       const newCount = (attemptRow.questions_attempted_count ?? 0) + 1;
       await supabase.from("test_attempts").update({ questions_attempted_count: newCount }).eq("id", data.attemptId);
+      const totalQuestions = attemptRow.total_questions ?? 0;
+      const isLastQuestion = totalQuestions > 0 && newCount >= totalQuestions;
+      if (!isLastQuestion) {
+        await getNextAdaptiveQuestion(data.attemptId, aiHistory);
+      }
+    } else {
+      await getNextAdaptiveQuestion(data.attemptId, aiHistory);
     }
-    await getNextAdaptiveQuestion(data.attemptId, aiHistory);
   }
 
 
@@ -775,6 +781,7 @@ export async function completeAttempt(
   attemptId: string,
   metrics?: Partial<TestAttempt>,
 ): Promise<AttemptResult> {
+
   const { data: attemptData, error: attemptError } = await supabase
     .from("test_attempts")
     .select("test_id, student_id, total_questions")
@@ -822,6 +829,7 @@ export async function completeAttempt(
     timePenalty: number;
     finalScore: number;
     totalWeightedMarks: number;
+    totalQuestionMarks: number;
     totalTestMarks: number;
   }
 
@@ -830,6 +838,7 @@ export async function completeAttempt(
     timePenalty: 0,
     finalScore: 0,
     totalWeightedMarks: 0,
+    totalQuestionMarks: 0,
     totalTestMarks: testData.total_mark || 0,
   };
 
@@ -837,6 +846,7 @@ export async function completeAttempt(
   const safeTotalMarks = totalTestMarks > 0 ? totalTestMarks : 1;
 
   let totalWeightedMarks = 0;
+  let totalQuestionMarks = 0;
   let correctCount = 0;
   let totalHintsUsedCount = 0;
 
@@ -910,6 +920,7 @@ export async function completeAttempt(
     const weightedMark = (postPenaltyScore / 100) * questionMark;
 
     totalWeightedMarks += weightedMark;
+    totalQuestionMarks += questionMark;
 
     aiScoreBreakdown.questions.push({
       questionId: row.question_id,
@@ -926,7 +937,7 @@ export async function completeAttempt(
       isConsideredCorrect: isQuestionCorrect,
     });
   }
-
+  totalWeightedMarks = (totalWeightedMarks / totalQuestionMarks) * safeTotalMarks;
   aiScoreBreakdown.totalWeightedMarks = totalWeightedMarks;
 
   let finalScoreCalculated = Math.round(
