@@ -37,7 +37,7 @@ export const questionItemSchema = z.object({
 export const variantGenerationSchema = z.object({
   title: z.string().min(1, "Title is required"),
   lessonId: z.string().min(1, "Lesson ID is required"),
-  configurations: z.array(variantConfigSchema).min(1),
+  configurations: z.array(variantConfigSchema).optional().default([]),
   generatedQuestions: z.array(questionItemSchema).default([]),
 });
 

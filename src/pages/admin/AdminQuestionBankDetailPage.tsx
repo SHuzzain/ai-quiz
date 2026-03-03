@@ -61,10 +61,12 @@ export default function AdminQuestionBankDetailPage() {
         },
     });
 
+
     const { fields, append, remove, update } = useFieldArray({
         control: form.control,
         name: "generatedQuestions",
     });
+
 
     const handleUpdateQuestion = (qId: string, updates: Partial<QuestionEditorData>) => {
         const index = fields.findIndex(f => f.id === qId);
@@ -204,6 +206,7 @@ export default function AdminQuestionBankDetailPage() {
 
     const handleSave = async (data: VariantGenerationForm) => {
         if (!id) return;
+
         try {
             await updateMutation.mutateAsync({
                 id,
