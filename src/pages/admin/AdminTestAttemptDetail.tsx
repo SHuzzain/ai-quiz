@@ -9,7 +9,7 @@ import { AdminLayout } from '@/components/layout';
 import { useAttemptDetails } from '@/hooks/useApi';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowLeft, Clock, Award, AlertCircle, CheckCircle2, XCircle, HelpCircle, BrainCircuit, FileText, Info } from 'lucide-react';
+import { ArrowLeft, Clock, Award, AlertCircle, CheckCircle2, XCircle, HelpCircle, BrainCircuit, FileText, Info, Lightbulb, Star } from 'lucide-react';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -244,15 +244,17 @@ export function AdminTestAttemptDetail() {
                                                 </span>
 
                                                 <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                                                    {result.hintsUsed > 0 && (
-                                                        <Badge variant="secondary" className="text-xs">
-                                                            {result.hintsUsed} hint{result.hintsUsed !== 1 ? 's' : ''}
-                                                        </Badge>
+                                                    {(result.hintsUsed ?? 0) > 0 && (
+                                                        <div className="flex items-center gap-1 text-xs text-kid-yellow font-medium bg-kid-yellow/10 px-2 py-1 rounded-full whitespace-nowrap">
+                                                            <Lightbulb className="w-3 h-3" />
+                                                            {result.hintsUsed ?? result?.generatedHints?.length ?? 0}
+                                                        </div>
                                                     )}
-                                                    {result.viewedMicroLearning && (
-                                                        <Badge variant="outline" className="border-kid-blue text-kid-blue text-xs">
-                                                            Viewed Learning
-                                                        </Badge>
+                                                    {(result?.viewedMicroLearning) && (
+                                                        <div className="flex items-center gap-1 text-xs text-kid-blue font-medium bg-kid-blue/10 px-2 py-1 rounded-full whitespace-nowrap">
+                                                            <Star className="w-3 h-3" />
+                                                            Learned
+                                                        </div>
                                                     )}
                                                     {result.aiScore !== undefined && result.aiScore < 100 && result.aiScore > 0 && (
                                                         <Badge variant="secondary" className="text-xs bg-yellow-100 text-yellow-800 hover:bg-yellow-200">
@@ -287,6 +289,45 @@ export function AdminTestAttemptDetail() {
                                                     </div>
                                                 </div>
                                             )}
+
+                                            {/* Hints & Micro-Learning accordion (same as TestResultsPage) */}
+                                            <Accordion type="multiple" className="space-y-2 mt-4">
+                                                {result.hintsUsed > 0 && (result.generatedHints?.length ?? 0) > 0 && (
+                                                    <AccordionItem value="hints" className="border rounded-lg bg-kid-yellow/5 border-kid-yellow/20 px-0">
+                                                        <AccordionTrigger className="px-3 py-2 text-sm font-semibold text-kid-yellow-dark hover:no-underline">
+                                                            <div className="flex items-center gap-2">
+                                                                <Lightbulb className="w-4 h-4" />
+                                                                Hints Used ({result.hintsUsed})
+                                                            </div>
+                                                        </AccordionTrigger>
+                                                        <AccordionContent className="px-3 pb-3 pt-0">
+                                                            <ul className="space-y-2 mt-2">
+                                                                {(result.generatedHints ?? []).map((hint: string, i: number) => (
+                                                                    <li key={i} className="text-sm flex gap-2">
+                                                                        <span className="font-bold text-kid-yellow-dark">{i + 1}.</span>
+                                                                        <span>{hint}</span>
+                                                                    </li>
+                                                                ))}
+                                                            </ul>
+                                                        </AccordionContent>
+                                                    </AccordionItem>
+                                                )}
+                                                {result.viewedMicroLearning && (
+                                                    <AccordionItem value="microlearning" className="border rounded-lg bg-kid-blue/5 border-kid-blue/20 px-0">
+                                                        <AccordionTrigger className="px-3 py-2 text-sm font-semibold text-kid-blue-dark hover:no-underline">
+                                                            <div className="flex items-center gap-2">
+                                                                <Star className="w-4 h-4" />
+                                                                Micro-Learning Viewed
+                                                            </div>
+                                                        </AccordionTrigger>
+                                                        <AccordionContent className="px-3 pb-3 pt-0">
+                                                            <p className="text-sm mt-2">
+                                                                {result.microLearningContent || "Content viewed during test"}
+                                                            </p>
+                                                        </AccordionContent>
+                                                    </AccordionItem>
+                                                )}
+                                            </Accordion>
 
                                             <div className="flex flex-wrap gap-2 text-xs text-muted-foreground pt-2 border-t">
                                                 <span>⏱ Time: {result.timeTakenSeconds}s</span>
