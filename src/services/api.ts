@@ -1102,7 +1102,9 @@ export async function getQuestionBankItems(
   if (filters?.search) {
     const term = filters.search.trim();
     if (term) {
-      const pattern = `%${term}%`;
+      // Wrap in double quotes so commas/spaces in term don't break PostgREST or() parser; escape " as ""
+      const escaped = term.replace(/"/g, '""');
+      const pattern = `"%${escaped}%"`;
       query = query.or(
         `question_text.ilike.${pattern},topic.ilike.${pattern},concept_tested.ilike.${pattern}`,
       );
