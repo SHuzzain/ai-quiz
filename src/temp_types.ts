@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -339,6 +339,62 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "question_bank_lesson_id_fkey";
+            columns: ["lesson_id"];
+            isOneToOne: false;
+            referencedRelation: "lessons";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      question_bank_items: {
+        Row: {
+          id: string;
+          lesson_id: string | null;
+          test_ids: string[];
+          question_text: string;
+          correct_answer: string;
+          working: string | null;
+          topic: string;
+          concept_tested: string;
+          marks: number;
+          difficulty: number;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          lesson_id?: string | null;
+          test_ids?: string[];
+          question_text: string;
+          correct_answer: string;
+          working?: string | null;
+          topic: string;
+          concept_tested: string;
+          marks?: number;
+          difficulty: number;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          lesson_id?: string | null;
+          test_ids?: string[];
+          question_text?: string;
+          correct_answer?: string;
+          working?: string | null;
+          topic?: string;
+          concept_tested?: string;
+          marks?: number;
+          difficulty?: number;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "question_bank_items_lesson_id_fkey";
             columns: ["lesson_id"];
             isOneToOne: false;
             referencedRelation: "lessons";

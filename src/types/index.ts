@@ -41,6 +41,14 @@ export interface Course {
 // Test & Question Types
 // ============================================
 
+/** Stored per-condition config for resolving questions from question bank. */
+export interface TestConditionStored {
+  topics: string[];
+  concept: string[];
+  difficulty: number;
+  numberOfQuestions: number;
+}
+
 export interface Test {
   id: string;
   title: string;
@@ -56,6 +64,8 @@ export interface Test {
   updatedAt?: Date;
   /** How many questions the student attempts; must be <= questionCount (pool size). */
   numberOfQuestions?: number | null;
+  /** Conditions used to resolve questions from question bank (for edit binding). */
+  conditions?: TestConditionStored[] | null;
 }
 
 export interface Question {
@@ -279,6 +289,23 @@ export interface ExtractedQuestionsResult {
 // ============================================
 // Question Bank Types
 // ============================================
+
+/** One row from question_bank_items table (list/dialog use). */
+export interface QuestionBankItemRow {
+  id: string;
+  lessonId: string | null;
+  testIds: string[];
+  questionText: string;
+  correctAnswer: string;
+  working: string | null;
+  topic: string;
+  conceptTested: string;
+  marks: number;
+  difficulty: number;
+  createdAt: Date;
+  updatedAt: Date;
+  createdBy: string | null;
+}
 
 export interface QuestionBankItem {
   title: string;

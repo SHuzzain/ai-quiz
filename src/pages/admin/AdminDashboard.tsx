@@ -25,7 +25,8 @@ export function AdminDashboard() {
   });
 
   console.log({ usersData })
-  const { data: tests } = useTests();
+  const { data: testsData } = useTests();
+  const tests = testsData?.items ?? [];
   const { data: analytics } = useAnalytics();
 
   const stats = [

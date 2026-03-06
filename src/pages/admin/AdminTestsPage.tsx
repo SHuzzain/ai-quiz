@@ -2,30 +2,33 @@
  * Admin Test Management Page
  */
 
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Plus,
   Search,
   FileText,
-  Clock,
-  Users,
-  MoreVertical,
+  Loader2,
   Edit,
   Trash2,
-  Eye
+  Eye,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { AdminLayout } from '@/components/layout';
 import { useTests, useDeleteTest } from '@/hooks/useApi';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent } from '@/components/ui/card';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import {
   Select,
   SelectContent,
@@ -33,38 +36,56 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { Test } from '@/types';
 
+const PAGE_SIZE_OPTIONS = [10, 20, 50];
+
 export function AdminTestsPage() {
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
-  const { data: tests, isLoading } = useTests({
-    status: statusFilter !== 'all' ? statusFilter as Test['status'] : undefined,
+  const { data: listData, isLoading } = useTests({
+    status: statusFilter !== 'all' ? (statusFilter as Test['status']) : undefined,
     search: search || undefined,
+    page,
+    pageSize,
   });
+  const tests = listData?.items ?? [];
+  const total = listData?.total ?? 0;
   const deleteTest = useDeleteTest();
 
-  const handleDelete = async (testId: string) => {
-    if (confirm('Are you sure you want to delete this test?')) {
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const startRow = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const endRow = Math.min(page * pageSize, total);
+
+  const handleDelete = async (e: React.MouseEvent, testId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!confirm('Are you sure you want to delete this test?')) return;
+    try {
       await deleteTest.mutateAsync(testId);
+    } catch {
+      // error handled by mutation
     }
   };
 
-  const getStatusBadge = (status: Test['status']) => {
-    const styles = {
-      draft: 'bg-muted text-muted-foreground',
-      scheduled: 'bg-warning/10 text-warning',
-      active: 'bg-success/10 text-success',
-      completed: 'bg-primary/10 text-primary',
-    };
-    return styles[status] || styles.draft;
+  const getStatusVariant = (status: Test['status']): 'secondary' | 'default' | 'outline' => {
+    if (status === 'active') return 'default';
+    if (status === 'completed') return 'secondary';
+    return 'outline';
   };
 
   return (
     <AdminLayout>
       <div className="space-y-6">
-        {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold">Test Management</h1>
@@ -78,7 +99,6 @@ export function AdminTestsPage() {
           </Link>
         </div>
 
-        {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -103,100 +123,155 @@ export function AdminTestsPage() {
           </Select>
         </div>
 
-        {/* Tests Grid */}
         {isLoading ? (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-48 bg-muted animate-pulse rounded-xl" />
-            ))}
+          <div className="flex flex-col items-center justify-center py-20 gap-3 text-muted-foreground">
+            <Loader2 className="w-8 h-8 animate-spin" />
+            <p>Loading tests...</p>
           </div>
         ) : tests && tests.length > 0 ? (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {tests.map((test, index) => (
-              <motion.div
-                key={test.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-                className="card-elevated group"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                    <FileText className="w-6 h-6 text-primary" />
+          <Card>
+            <div className="overflow-auto max-h-[70vh]">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12">No</TableHead>
+                    <TableHead className="w-20">Title</TableHead>
+                    {/* <TableHead className="w-20">Description</TableHead> */}
+                    <TableHead className="w-20">Status</TableHead>
+                    <TableHead className="w-20">Questions</TableHead>
+                    <TableHead className="w-20">Duration</TableHead>
+                    <TableHead className="w-24">Total Mark</TableHead>
+                    <TableHead className="w-28">Scheduled</TableHead>
+                    <TableHead className="w-[120px] text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {tests.map((test, index) => (
+                    <TableRow
+                      key={test.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => navigate(`/admin/tests/${test.id}`)}
+                    >
+                      <TableCell className="font-muted-foreground">{startRow + index}</TableCell>
+                      <TableCell className="font-medium max-w-[200px] truncate" title={test.title}>
+                        {test.title}
+                      </TableCell>
+                      {/* <TableCell className="max-w-[240px] truncate text-muted-foreground" title={test.description}>
+                        {test.description || '—'}
+                      </TableCell> */}
+                      <TableCell>
+                        <Badge variant={getStatusVariant(test.status as Test['status'])} className="capitalize">
+                          {test.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{test.questionCount}</TableCell>
+                      <TableCell>{test.duration} min</TableCell>
+                      <TableCell>{test.totalMark ?? '—'}</TableCell>
+                      <TableCell>{new Date(test.scheduledDate).toLocaleDateString()}</TableCell>
+                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => navigate(`/admin/tests/${test.id}`)}
+                            title="View"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => navigate(`/admin/tests/${test.id}/edit`)}
+                            title="Edit"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-pretty"
+                            onClick={(e) => handleDelete(e, test.id)}
+                            title="Delete"
+                            disabled={deleteTest.isPending}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            {total > 0 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t">
+                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                  <span>
+                    Showing {startRow}–{endRow} of {total}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="tests-page-size" className="text-xs whitespace-nowrap">Per page</Label>
+                    <select
+                      id="tests-page-size"
+                      value={pageSize}
+                      onChange={(e) => {
+                        setPageSize(Number(e.target.value));
+                        setPage(1);
+                      }}
+                      className="h-8 rounded-md border border-input bg-background px-2 text-sm"
+                    >
+                      {PAGE_SIZE_OPTIONS.map((n) => (
+                        <option key={n} value={n}>{n}</option>
+                      ))}
+                    </select>
                   </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity">
-                        <MoreVertical className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem asChild className="focus:bg-primary/10 focus:text-primary">
-                        <Link to={`/admin/tests/${test.id}`} className="text-foreground hover:text-primary">
-                          <Eye className="w-4 h-4 mr-2" />
-                          View
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild className="focus:bg-primary/10 focus:text-primary">
-                        <Link to={`/admin/tests/${test.id}/edit`} className="text-foreground hover:text-primary">
-                          <Edit className="w-4 h-4 mr-2" />
-                          Edit
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleDelete(test.id)}
-                        className="text-destructive focus:bg-destructive/10 focus:text-destructive"
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
                 </div>
-
-                <h3 className="font-semibold text-lg mb-1 line-clamp-1">{test.title}</h3>
-                <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-                  {test.description}
-                </p>
-
-                <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
-                  <span className="flex items-center gap-1">
-                    <FileText className="w-4 h-4" />
-                    {test.questionCount} Q
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page <= 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Previous
+                  </Button>
+                  <span className="text-sm text-muted-foreground min-w-[80px] text-center">
+                    Page {page} of {totalPages}
                   </span>
-                  <span className="flex items-center gap-1">
-                    <Clock className="w-4 h-4" />
-                    {test.duration} min
-                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={page >= totalPages}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
                 </div>
-
-                <div className="flex items-center justify-between">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${getStatusBadge(test.status)}`}>
-                    {test.status}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {new Date(test.scheduledDate).toLocaleDateString()}
-                  </span>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-12 bg-muted/30 rounded-xl">
-            <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No tests found</h3>
-            <p className="text-muted-foreground mb-4">
-              {search ? 'Try adjusting your search' : 'Create your first test to get started'}
-            </p>
-            {!search && (
-              <Link to="/admin/tests/new">
-                <Button>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Test
-                </Button>
-              </Link>
+              </div>
             )}
-          </div>
+          </Card>
+        ) : (
+          <Card>
+            <CardContent className="py-12 text-center text-muted-foreground">
+              <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <h3 className="text-lg font-semibold mb-2 text-foreground">No tests found</h3>
+              <p className="mb-4">
+                {search ? 'Try adjusting your search' : 'Create your first test to get started'}
+              </p>
+              {!search && (
+                <Link to="/admin/tests/new">
+                  <Button className="gap-2">
+                    <Plus className="w-4 h-4" />
+                    Create Test
+                  </Button>
+                </Link>
+              )}
+            </CardContent>
+          </Card>
         )}
       </div>
     </AdminLayout>

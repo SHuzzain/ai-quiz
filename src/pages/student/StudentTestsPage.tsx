@@ -11,7 +11,8 @@ import { motion } from "framer-motion";
 export function StudentTestsPage() {
     const navigate = useNavigate();
     const { data: user } = useCurrentUser();
-    const { data: tests, isLoading: testsLoading } = useTests({ status: "active" });
+    const { data: testsData, isLoading: testsLoading } = useTests({ status: "active", pageSize: 500 });
+    const tests = testsData?.items ?? [];
     const { data: attempts, isLoading: attemptsLoading } = useStudentAttempts(user?.id);
     const startAttempt = useStartAttempt();
 

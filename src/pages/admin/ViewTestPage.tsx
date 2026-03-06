@@ -11,7 +11,6 @@ import {
     FileText,
     Edit,
     Trash2,
-    BookOpen
 } from 'lucide-react';
 import { AdminLayout } from '@/components/layout';
 import { useTestWithQuestions, useDeleteTest, useLessons } from '@/hooks/useApi';
@@ -19,6 +18,15 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
+import type { TestConditionStored } from '@/types';
 
 export function ViewTestPage() {
     const { testId } = useParams<{ testId: string }>();
@@ -60,7 +68,7 @@ export function ViewTestPage() {
 
     return (
         <AdminLayout>
-            <div className="max-w-4xl mx-auto space-y-8 pb-20">
+            <div className="max-w-5xl mx-auto space-y-8 pb-20 px-4">
                 {/* Header */}
                 <div className="flex items-start justify-between gap-4">
                     <div className="flex items-center gap-4">
@@ -92,116 +100,98 @@ export function ViewTestPage() {
                     </div>
                 </div>
 
-                <div className="grid gap-6 md:grid-cols-3">
-                    {/* Main Info */}
-                    <div className="md:col-span-2 space-y-6">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Description</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                                    {test.description || 'No description provided.'}
-                                </p>
-                            </CardContent>
-                        </Card>
+                {/* Details */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Details</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="flex items-center gap-3 text-sm">
+                            <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center text-orange-600 shrink-0">
+                                <Calendar className="w-4 h-4" />
+                            </div>
+                            <div>
+                                <p className="text-muted-foreground">Scheduled Date</p>
+                                <p className="font-medium">{new Date(test.scheduledDate).toLocaleDateString()}</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3 text-sm">
+                            <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
+                                <Clock className="w-4 h-4" />
+                            </div>
+                            <div>
+                                <p className="text-muted-foreground">Duration</p>
+                                <p className="font-medium">{test.duration} minutes</p>
+                            </div>
+                        </div>
+                        {/* <div className="flex items-center gap-3 text-sm">
+                            <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center text-purple-600 shrink-0">
+                                <FileText className="w-4 h-4" />
+                            </div>
+                            <div>
+                                <p className="text-muted-foreground">Associated Lesson</p>
+                                <p className="font-medium">{lesson?.title || 'None'}</p>
+                            </div>
+                        </div> */}
+                        <Separator />
+                        <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                            <div>
+                                <p className="text-muted-foreground">Total Mark</p>
+                                <p className="font-medium">{test.totalMark ?? '—'}</p>
+                            </div>
+                            <div>
+                                <p className="text-muted-foreground">Question limit</p>
+                                <p className="font-medium">{test.numberOfQuestions ?? '—'}</p>
+                            </div>
+                            <div>
+                                <p className="text-muted-foreground">Questions in bank</p>
+                                <p className="font-medium">{test.questionCount}</p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
 
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center justify-between">
-                                    <span>Questions</span>
-                                    <Badge variant="outline">{test.questions.length} Total</Badge>
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-6">
-                                {test.questions.length === 0 ? (
-                                    <p className="text-center text-muted-foreground py-8">No questions added yet.</p>
-                                ) : (
-                                    test.questions.map((q, index) => (
-                                        <div key={q.id} className="group">
-                                            <div className="flex items-start gap-4">
-                                                <span className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-muted text-sm font-medium">
-                                                    {index + 1}
-                                                </span>
-                                                <div className="flex-1 space-y-2">
-                                                    <p className="font-medium text-lg">{q.questionText}</p>
-
-                                                    <div className="grid sm:grid-cols-2 gap-4 mt-2">
-                                                        <div className="p-3 rounded-lg bg-green-50 border border-green-100 dark:bg-green-900/10 dark:border-green-900/20">
-                                                            <p className="text-xs text-green-700 dark:text-green-400 font-semibold mb-1">Correct Answer</p>
-                                                            <p className="text-sm">{q.correctAnswer}</p>
-                                                        </div>
-                                                        {q.hints && q.hints.length > 0 && (
-                                                            <div className="p-3 rounded-lg bg-yellow-50 border border-yellow-100 dark:bg-yellow-900/10 dark:border-yellow-900/20">
-                                                                <p className="text-xs text-yellow-700 dark:text-yellow-400 font-semibold mb-1">Hints</p>
-                                                                <ul className="text-sm list-disc list-inside">
-                                                                    {q.hints.map((h, i) => (
-                                                                        <li key={i}>{h}</li>
-                                                                    ))}
-                                                                </ul>
-                                                            </div>
-                                                        )}
-                                                    </div>
-
-                                                    {q.microLearning && (
-                                                        <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-50 border border-blue-100 dark:bg-blue-900/10 dark:border-blue-900/20 text-sm">
-                                                            <BookOpen className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                                                            <div>
-                                                                <span className="font-semibold text-blue-700 dark:text-blue-400">Micro-learning: </span>
-                                                                <span className="text-blue-800 dark:text-blue-300">{q.microLearning}</span>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            {index < test.questions.length - 1 && <Separator className="my-6" />}
-                                        </div>
-                                    ))
-                                )}
-                            </CardContent>
-                        </Card>
-                    </div>
-
-                    {/* Sidebar Meta */}
-                    <div className="space-y-6">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Details</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="flex items-center gap-3 text-sm">
-                                    <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center text-orange-600">
-                                        <Calendar className="w-4 h-4" />
-                                    </div>
-                                    <div>
-                                        <p className="text-muted-foreground">Scheduled Date</p>
-                                        <p className="font-medium">{new Date(test.scheduledDate).toLocaleDateString()}</p>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center gap-3 text-sm">
-                                    <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600">
-                                        <Clock className="w-4 h-4" />
-                                    </div>
-                                    <div>
-                                        <p className="text-muted-foreground">Duration</p>
-                                        <p className="font-medium">{test.duration} minutes</p>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center gap-3 text-sm">
-                                    <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center text-purple-600">
-                                        <FileText className="w-4 h-4" />
-                                    </div>
-                                    <div>
-                                        <p className="text-muted-foreground">Associated Lesson</p>
-                                        <p className="font-medium">{lesson?.title || 'None'}</p>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </div>
-                </div>
+                {/* Conditions – full width, centered */}
+                {test.conditions && test.conditions.length > 0 && (
+                    <Card className="w-full">
+                        <CardHeader>
+                            <CardTitle>Conditions</CardTitle>
+                            <p className="text-sm text-muted-foreground">
+                                Question bank conditions used to build this test.
+                            </p>
+                        </CardHeader>
+                        <CardContent className="flex justify-center">
+                            <div className="w-full overflow-auto rounded-md border mx-auto">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="w-12">No</TableHead>
+                                            <TableHead className="min-w-[140px]">Topics</TableHead>
+                                            <TableHead className="min-w-[140px]">Concept</TableHead>
+                                            <TableHead className="w-48">Difficulty</TableHead>
+                                            <TableHead className="w-48">No. of Questions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {(test.conditions as TestConditionStored[]).map((c, i) => (
+                                            <TableRow key={i}>
+                                                <TableCell className="font-muted-foreground">{i + 1}</TableCell>
+                                                <TableCell className="text-sm">
+                                                    {c.topics?.length ? c.topics.join(', ') : 'Any'}
+                                                </TableCell>
+                                                <TableCell className="text-sm">
+                                                    {c.concept?.length ? c.concept.join(', ') : 'Any'}
+                                                </TableCell>
+                                                <TableCell>{c.difficulty}</TableCell>
+                                                <TableCell>{c.numberOfQuestions}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
             </div>
         </AdminLayout>
     );

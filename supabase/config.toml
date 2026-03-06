@@ -27,3 +27,6 @@ verify_jwt = false
 [functions.generate-question-bank]
 verify_jwt = false
 
+
+[functions.generate-question-bank-v2]
+verify_jwt = false

@@ -6,16 +6,34 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 
+const DEFAULT_TESTS_PAGE_SIZE = 1000;
+
+export interface GetTestsResult {
+  items: ReturnType<typeof mapTestRow>[];
+  total: number;
+}
+
 export async function getTests(filters?: {
   status?: string;
   search?: string;
-}) {
-  let query = supabase.from("tests").select("*");
+  page?: number;
+  pageSize?: number;
+}): Promise<GetTestsResult> {
+  const page = Math.max(1, filters?.page ?? 1);
+  const pageSize = Math.min(100, Math.max(1, filters?.pageSize ?? DEFAULT_TESTS_PAGE_SIZE));
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
+  let query = supabase.from("tests").select("*", { count: "exact" });
   if (filters?.status) query = query.eq("status", filters.status);
   if (filters?.search) query = query.ilike("title", `%${filters.search}%`);
-  const { data, error } = await query;
+
+  const { data, error, count } = await query.order("created_at", { ascending: false }).range(from, to);
   if (error) throw error;
-  return (data ?? []).map((row) => mapTestRow(row));
+
+  const total = count ?? 0;
+  const items = (data ?? []).map((row) => mapTestRow(row as Tables<"tests">));
+  return { items, total };
 }
 
 export async function getQuestionById(questionId: string) {
@@ -43,7 +61,7 @@ export async function getTestWithQuestions(testId: string) {
     .order("order", { ascending: true });
   if (questionsError) throw questionsError;
 
-  const testRow = test;
+  const testRow = test as Tables<"tests">;
   return {
     ...mapTestRow(testRow),
     totalMark: testRow.total_mark ?? 0,
@@ -61,6 +79,7 @@ export async function createTest(data: {
   status?: string;
   totalMark?: number;
   numberOfQuestions?: number | null;
+  conditions?: unknown;
 }) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
@@ -76,6 +95,7 @@ export async function createTest(data: {
     question_count: 0,
     total_mark: data.totalMark ?? 0,
     number_of_questions: data.numberOfQuestions ?? null,
+    conditions: (data.conditions as TablesInsert<"tests">["conditions"]) ?? null,
   };
 
   const { data: newTest, error } = await supabase
@@ -96,6 +116,8 @@ export async function updateTest(testId: string, data: Partial<{
   status?: string;
   totalMark?: number;
   numberOfQuestions?: number | null;
+  questionCount?: number;
+  conditions?: unknown;
 }>) {
   if (
     data.numberOfQuestions !== undefined &&
@@ -115,13 +137,15 @@ export async function updateTest(testId: string, data: Partial<{
 
   const updates: TablesUpdate<"tests"> = {};
   if (data.title) updates.title = data.title;
-  if (data.description) updates.description = data.description;
+  if (data.description !== undefined) updates.description = data.description;
   if (data.scheduledDate) updates.scheduled_date = data.scheduledDate.toISOString();
   if (data.duration !== undefined) updates.duration = data.duration;
   if (data.status) updates.status = data.status;
   if (data.lessonId !== undefined) updates.lesson_id = data.lessonId;
   if (data.totalMark !== undefined) updates.total_mark = data.totalMark;
   if (data.numberOfQuestions !== undefined) updates.number_of_questions = data.numberOfQuestions;
+  if (data.questionCount !== undefined) updates.question_count = data.questionCount;
+  if (data.conditions !== undefined) updates.conditions = data.conditions as TablesUpdate<"tests">["conditions"];
 
   const { data: updatedTest, error } = await supabase
     .from("tests")
@@ -199,6 +223,23 @@ export async function getUpcomingTests(studentId: string) {
   return (data ?? []).map((row) => mapTestRow(row as Tables<"tests">));
 }
 
+function parseConditions(conditions: unknown): { topics: string[]; concept: string[]; difficulty: number; numberOfQuestions: number }[] | undefined {
+  if (conditions == null || !Array.isArray(conditions)) return undefined;
+  const out: { topics: string[]; concept: string[]; difficulty: number; numberOfQuestions: number }[] = [];
+  for (const c of conditions) {
+    if (c && typeof c === "object" && Array.isArray((c as { topics?: unknown }).topics) && Array.isArray((c as { concept?: unknown }).concept)) {
+      const x = c as { topics: string[]; concept: string[]; difficulty?: number; numberOfQuestions?: number };
+      out.push({
+        topics: x.topics ?? [],
+        concept: x.concept ?? [],
+        difficulty: typeof x.difficulty === "number" ? x.difficulty : 1,
+        numberOfQuestions: typeof x.numberOfQuestions === "number" ? x.numberOfQuestions : 0,
+      });
+    }
+  }
+  return out.length ? out : undefined;
+}
+
 function mapTestRow(row: Tables<"tests">) {
   return {
     id: row.id,
@@ -213,6 +254,7 @@ function mapTestRow(row: Tables<"tests">) {
     questionCount: row.question_count,
     totalMark: row.total_mark ?? 0,
     numberOfQuestions: row.number_of_questions ?? undefined,
+    conditions: parseConditions(row.conditions),
   };
 }
 

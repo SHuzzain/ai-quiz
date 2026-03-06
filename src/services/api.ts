@@ -25,6 +25,7 @@ import {
   FileUpload,
   QuestionBankItem,
   QuestionBankSet,
+  QuestionBankItemRow,
 } from "@/types";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -346,6 +347,90 @@ export async function extractQuestionsFromText(
 
   if (error) throw error;
   return data;
+}
+
+/**
+ * Condition for test creation: filter question bank by topics, concept, difficulty; take up to numberOfQuestions.
+ */
+export interface TestCondition {
+  topics: string[];
+  concept: string[];
+  difficulty: number;
+  numberOfQuestions: number | string;
+}
+
+/**
+ * Resolve conditions against question bank items: for each condition, filter by topic/concept/difficulty,
+ * take up to numberOfQuestions (shuffled), then aggregate and dedupe by id.
+ */
+export function resolveConditionsFromBank(
+  conditions: TestCondition[],
+  items: TablesInsert<"question_bank_items">[],
+) {
+  const seen = new Set<string>();
+  const result: TablesInsert<"question_bank_items">[] = [];
+
+  for (const cond of conditions) {
+    const n = Math.max(0, Number(cond.numberOfQuestions ?? 0));
+    if (n === 0) continue;
+
+    const pool = items.filter((item) => {
+      if (seen.has(item.id)) return false;
+      if (cond.topics.length > 0 && !cond.topics.includes(item.topic)) return false;
+      if (cond.concept.length > 0 && !cond.concept.includes(item.concept_tested)) return false;
+      if (item.difficulty !== cond.difficulty) return false;
+      return true;
+    });
+
+    // Shuffle and take first n
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    const taken = pool.slice(0, n);
+    for (const item of taken) {
+      seen.add(item.id);
+      result.push(item);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Return question bank items that remain after applying conditions 0..upToIndex-1.
+ * For upToIndex === 0, returns all items. Used for cascading dropdown options.
+ */
+export function getRemainingItemsAfterConditions(
+  conditions: TestCondition[],
+  upToIndex: number,
+  items: TablesInsert<"question_bank_items">[],
+): TablesInsert<"question_bank_items">[] {
+  if (upToIndex <= 0) return items;
+  const taken = resolveConditionsFromBank(conditions.slice(0, upToIndex), items);
+  const takenIds = new Set(taken.map((x) => x.id));
+  return items.filter((item) => item.id != null && !takenIds.has(item.id));
+}
+
+/**
+ * Map a question bank item to the payload shape expected by addQuestion.
+ */
+export function mapBankItemToAddQuestionPayload(
+  item: TablesInsert<"question_bank_items">,
+  order: number,
+): Omit<Question, "id" | "testId"> {
+  return {
+    questionText: item.question_text,
+    correctAnswer: item.correct_answer,
+    hints: [],
+    microLearning: "",
+    order,
+    topic: item.topic,
+    concept: item.concept_tested,
+    mark: item.marks,
+    difficulty: item.difficulty,
+    working: item.working ?? "",
+  };
 }
 
 /**
@@ -940,6 +1025,212 @@ export async function updateQuestionBankSet(
  */
 export async function deleteQuestionBankSet(id: string): Promise<void> {
   const { error } = await supabase.from("question_bank").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// ============================================
+// Question Bank Items (per-question table)
+// ============================================
+
+export interface GenerateQuestionBankResponse {
+  questions: Array<{
+    question: string;
+    answer: string;
+    working: string;
+    topic: string;
+    conceptTested: string;
+    marks: number;
+    difficulty: number;
+  }>;
+}
+
+/**
+ * Invoke generate-question-bank edge function with document content.
+ * Returns list of questions for straight creation.
+ */
+export async function generateQuestionBankFromDocument(payload: {
+  content: string;
+}): Promise<GenerateQuestionBankResponse> {
+  const { data, error } = await supabase.functions.invoke("generate-question-bank-v2", {
+    body: payload,
+  });
+  if (error) throw error;
+  if (!data?.questions) throw new Error("Invalid response from generate-question-bank");
+  return data as GenerateQuestionBankResponse;
+}
+
+export interface GetQuestionBankItemsFilters {
+  lessonId?: string;
+  topic?: string;
+  concept?: string;
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface GetQuestionBankItemsResult {
+  items: QuestionBankItemRow[];
+  total: number;
+}
+
+const DEFAULT_PAGE_SIZE = 10;
+
+/**
+ * List question bank items (flat list for table view) with pagination.
+ */
+export async function getQuestionBankItems(
+  filters?: GetQuestionBankItemsFilters,
+) {
+  const page = Math.max(1, filters?.page ?? 1);
+  const pageSize = Math.min(100, Math.max(1, filters?.pageSize ?? DEFAULT_PAGE_SIZE));
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
+  let query = supabase
+    .from("question_bank_items")
+    .select("*", { count: "exact" });
+
+  if (filters?.lessonId) {
+    query = query.eq("lesson_id", filters.lessonId);
+  }
+  if (filters?.topic) {
+    query = query.eq("topic", filters.topic);
+  }
+  if (filters?.concept) {
+    query = query.eq("concept_tested", filters.concept);
+  }
+  if (filters?.search) {
+    const term = filters.search.trim();
+    if (term) {
+      const pattern = `%${term}%`;
+      query = query.or(
+        `question_text.ilike.${pattern},topic.ilike.${pattern},concept_tested.ilike.${pattern}`,
+      );
+    }
+  }
+
+  const { data, error, count } = await query
+    .order("created_at", { ascending: false })
+    .range(from, to);
+  if (error) throw error;
+
+  const total = count ?? 0;
+  const items = (data ?? []).map((row) => ({
+    id: row.id,
+    lessonId: row.lesson_id,
+    testIds: row.test_ids ?? [],
+    questionText: row.question_text,
+    correctAnswer: row.correct_answer,
+    working: row.working ?? null,
+    topic: row.topic,
+    conceptTested: row.concept_tested,
+    marks: row.marks,
+    difficulty: row.difficulty,
+    createdAt: new Date(row.created_at),
+    updatedAt: new Date(row.updated_at),
+    createdBy: row.created_by,
+  }));
+
+  return { items, total };
+}
+
+/**
+ * Bulk create question bank items (after Generate in Add dialog).
+ */
+export async function createQuestionBankItems(
+  items: GenerateQuestionBankResponse["questions"],
+  options?: { lessonId?: string | null; createdBy?: string },
+): Promise<QuestionBankItemRow[]> {
+  const userResponse = await supabase.auth.getUser();
+  const userId = options?.createdBy ?? userResponse.data.user?.id ?? null;
+
+  const rows: TablesInsert<"question_bank_items">[] = items.map((q) => ({
+    lesson_id: options?.lessonId ?? null,
+    test_ids: [],
+    question_text: q.question,
+    correct_answer: q.answer,
+    working: q.working ?? "",
+    topic: q.topic,
+    concept_tested: q.conceptTested,
+    marks: q.marks,
+    difficulty: q.difficulty,
+    created_by: userId,
+  }));
+
+  const { data, error } = await supabase
+    .from("question_bank_items")
+    .insert(rows)
+    .select();
+
+  if (error) throw error;
+
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    lessonId: row.lesson_id,
+    testIds: row.test_ids ?? [],
+    questionText: row.question_text,
+    correctAnswer: row.correct_answer,
+    working: row.working ?? null,
+    topic: row.topic,
+    conceptTested: row.concept_tested,
+    marks: row.marks,
+    difficulty: row.difficulty,
+    createdAt: new Date(row.created_at),
+    updatedAt: new Date(row.updated_at),
+    createdBy: row.created_by,
+  }));
+}
+
+/**
+ * Update a question bank item.
+ */
+export async function updateQuestionBankItem(
+  id: string,
+  updates: Partial<Omit<QuestionBankItemRow, "id" | "createdAt" | "createdBy">>,
+): Promise<QuestionBankItemRow> {
+  const payload: TablesUpdate<"question_bank_items"> = {};
+  if (updates.lessonId !== undefined) payload.lesson_id = updates.lessonId;
+  if (updates.testIds !== undefined) payload.test_ids = updates.testIds;
+  if (updates.questionText !== undefined) payload.question_text = updates.questionText;
+  if (updates.correctAnswer !== undefined) payload.correct_answer = updates.correctAnswer;
+  if (updates.working !== undefined) payload.working = updates.working;
+  if (updates.topic !== undefined) payload.topic = updates.topic;
+  if (updates.conceptTested !== undefined) payload.concept_tested = updates.conceptTested;
+  if (updates.marks !== undefined) payload.marks = updates.marks;
+  if (updates.difficulty !== undefined) payload.difficulty = updates.difficulty;
+
+  const { data, error } = await supabase
+    .from("question_bank_items")
+    .update(payload)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  const row = data;
+  return {
+    id: row.id,
+    lessonId: row.lesson_id,
+    testIds: row.test_ids ?? [],
+    questionText: row.question_text,
+    correctAnswer: row.correct_answer,
+    working: row.working ?? null,
+    topic: row.topic,
+    conceptTested: row.concept_tested,
+    marks: row.marks,
+    difficulty: row.difficulty,
+    createdAt: new Date(row.created_at),
+    updatedAt: new Date(row.updated_at),
+    createdBy: row.created_by,
+  };
+}
+
+/**
+ * Delete a question bank item.
+ */
+export async function deleteQuestionBankItem(id: string): Promise<void> {
+  const { error } = await supabase.from("question_bank_items").delete().eq("id", id);
   if (error) throw error;
 }
 

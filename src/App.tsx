@@ -22,10 +22,8 @@ import { AdminAnalyticsPage } from "@/pages/admin/AdminAnalyticsPage";
 import { AdminTestsReportPage } from "@/pages/admin/AdminTestsReportPage";
 import { AdminTestAttemptDetail } from "@/pages/admin/AdminTestAttemptDetail";
 
-// Question Bank Pages
+// Question Bank
 import AdminQuestionBankListPage from "@/pages/admin/AdminQuestionBankListPage";
-import AdminQuestionBankCreatePage from "@/pages/admin/AdminQuestionBankCreatePage";
-import AdminQuestionBankDetailPage from "@/pages/admin/AdminQuestionBankDetailPage";
 
 // Student Pages
 import { StudentDashboard } from "@/pages/student/StudentDashboard";
@@ -66,10 +64,8 @@ const App = () => (
             <Route path="/admin/reports" element={<AdminTestsReportPage />} />
             <Route path="/admin/reports/:attemptId" element={<AdminTestAttemptDetail />} />
 
-            {/* Question Bank Routes */}
+            {/* Question Bank */}
             <Route path="/admin/questions" element={<AdminQuestionBankListPage />} />
-            <Route path="/admin/questions/create" element={<AdminQuestionBankCreatePage />} />
-            <Route path="/admin/questions/:id" element={<AdminQuestionBankDetailPage />} />
 
             <Route path="/admin/profile" element={<ProfilePage />} />
 

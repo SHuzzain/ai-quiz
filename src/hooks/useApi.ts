@@ -158,6 +158,8 @@ export function useUpdateUser() {
 export function useTests(filters?: {
   status?: string;
   search?: string;
+  page?: number;
+  pageSize?: number;
 }) {
   return useQuery({
     queryKey: queryKeys.tests(filters),
@@ -643,6 +645,82 @@ export function useDeleteQuestionBankSet() {
     mutationFn: api.deleteQuestionBankSet,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["questionBankSets"] });
+    },
+  });
+}
+
+// ============================================
+// Question Bank Items (per-question table)
+// ============================================
+
+export function useQuestionBankItems(filters?: api.GetQuestionBankItemsFilters) {
+  return useQuery({
+    queryKey: [...queryKeys.questionBankItems, filters],
+    queryFn: () => api.getQuestionBankItems(filters),
+  });
+}
+
+export function useCreateQuestionBankItems() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: {
+      items: api.GenerateQuestionBankResponse["questions"];
+      lessonId?: string | null;
+    }) => api.createQuestionBankItems(params.items, { lessonId: params.lessonId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.questionBankItems });
+    },
+  });
+}
+
+/** Generate questions from document then save to question_bank_items (Add dialog flow). */
+export function useGenerateAndCreateQuestionBankItems() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (params: {
+      content: string;
+      lessonId?: string | null;
+    }) => {
+      const response = await api.generateQuestionBankFromDocument({
+        content: params.content,
+      });
+      const created = await api.createQuestionBankItems(response.questions, {
+        lessonId: params.lessonId,
+      });
+      return { created, count: created.length };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.questionBankItems });
+    },
+  });
+}
+
+export function useUpdateQuestionBankItem() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      updates,
+    }: {
+      id: string;
+      updates: Parameters<typeof api.updateQuestionBankItem>[1];
+    }) => api.updateQuestionBankItem(id, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.questionBankItems });
+    },
+  });
+}
+
+export function useDeleteQuestionBankItem() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: api.deleteQuestionBankItem,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.questionBankItems });
     },
   });
 }
