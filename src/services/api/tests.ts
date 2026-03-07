@@ -124,12 +124,18 @@ export async function updateTest(testId: string, data: Partial<{
     data.numberOfQuestions !== null &&
     data.numberOfQuestions > 0
   ) {
-    const { data: test } = await supabase
-      .from("tests")
-      .select("question_count")
-      .eq("id", testId)
-      .single();
-    const poolCount = (test as { question_count?: number } | null)?.question_count ?? 0;
+    // If caller is updating questionCount in the same request, validate against that value.
+    // Otherwise validate against the current stored question_count.
+    const poolCount =
+      typeof data.questionCount === "number"
+        ? data.questionCount
+        : ((
+            await supabase
+              .from("tests")
+              .select("question_count")
+              .eq("id", testId)
+              .single()
+          ).data as { question_count?: number } | null)?.question_count ?? 0;
     if (data.numberOfQuestions > poolCount) {
       throw new Error("Number of questions cannot exceed selected question count");
     }

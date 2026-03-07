@@ -68,7 +68,6 @@ export function CreateTestPage() {
   const [scheduledDate, setScheduledDate] = useState('');
   const [duration, setDuration] = useState(15);
   const [totalMarks, setTotalMarks] = useState(0);
-  const [numberOfQuestions, setNumberOfQuestions] = useState<number | ''>('');
   const [conditions, setConditions] = useState<TestCondition[]>([{ ...defaultCondition }]);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -78,9 +77,6 @@ export function CreateTestPage() {
       setScheduledDate(new Date(existingTest.scheduledDate).toISOString().split('T')[0]);
       setDuration(existingTest.duration);
       setTotalMarks(existingTest.totalMark ?? 0);
-      setNumberOfQuestions(
-        existingTest.numberOfQuestions != null ? existingTest.numberOfQuestions : '',
-      );
       const stored = existingTest.conditions;
       if (Array.isArray(stored) && stored.length > 0) {
         setConditions(
@@ -169,15 +165,6 @@ export function CreateTestPage() {
       toast.error('Published date is required.');
       return;
     }
-    if (numberOfQuestions === '' || numberOfQuestions == null) {
-      toast.error('Question Limit is required.');
-      return;
-    }
-    const questionLimitNum = Number(numberOfQuestions);
-    if (questionLimitNum < 1) {
-      toast.error('Question Limit must be at least 1.');
-      return;
-    }
     if (conditions.length === 0) {
       toast.error('Add at least one condition.');
       return;
@@ -192,11 +179,10 @@ export function CreateTestPage() {
       return;
     }
 
-    const totalFromConditions = conditions.reduce((sum, c) => sum + Number(c.numberOfQuestions ?? 0), 0);
-    if (totalFromConditions > questionLimitNum) {
-      toast.error(
-        `Total No. of Questions from conditions (${totalFromConditions}) cannot be greater than Question Limit (${questionLimitNum}).`,
-      );
+    // Question Limit is auto-calculated from conditions.
+    const questionLimitNum = conditions.reduce((sum, c) => sum + Number(c.numberOfQuestions ?? 0), 0);
+    if (questionLimitNum < 1) {
+      toast.error('Total No. of Questions must be at least 1.');
       return;
     }
 
@@ -228,7 +214,6 @@ export function CreateTestPage() {
             duration,
             scheduledDate: new Date(scheduledDate),
             totalMark: totalMarks,
-            numberOfQuestions: numQ ?? undefined,
             conditions: conditions.map((c) => ({
               topics: c.topics,
               concept: c.concept,
@@ -253,7 +238,10 @@ export function CreateTestPage() {
 
         await updateTest.mutateAsync({
           testId,
-          data: { questionCount: resolved.length },
+          data: {
+            questionCount: resolved.length,
+            numberOfQuestions: numQ,
+          },
         });
 
         toast.success('Test updated successfully.');
@@ -265,7 +253,7 @@ export function CreateTestPage() {
           scheduledDate: new Date(scheduledDate),
           totalMark: totalMarks,
           status: isToday ? 'active' : 'draft',
-          numberOfQuestions: numQ ?? null,
+          numberOfQuestions: numQ,
           conditions,
         });
 
@@ -286,7 +274,7 @@ export function CreateTestPage() {
               difficulty: c.difficulty,
               numberOfQuestions: Number(c.numberOfQuestions ?? 0),
             })),
-            ...(numQ != null ? { numberOfQuestions: numQ } : {}),
+            numberOfQuestions: numQ,
           },
         });
 
@@ -312,19 +300,15 @@ export function CreateTestPage() {
     );
   }
 
-  const questionLimitNumForSave =
-    numberOfQuestions === '' || numberOfQuestions == null ? 0 : Number(numberOfQuestions);
-  const totalFromConditionsForSave = conditions.reduce((sum, c) => sum + Number(c.numberOfQuestions ?? 0), 0);
+  const questionLimitNumForSave = conditions.reduce((sum, c) => sum + Number(c.numberOfQuestions ?? 0), 0);
   const canSave =
     title.trim() &&
     scheduledDate &&
-    numberOfQuestions !== '' &&
     questionLimitNumForSave >= 1 &&
     conditions.length > 0 &&
     !conditions.some(
       (c) => (c.topics.length === 0 && c.concept.length === 0) || Number(c.numberOfQuestions ?? 0) < 1,
-    ) &&
-    totalFromConditionsForSave <= questionLimitNumForSave;
+    );
 
   return (
     <AdminLayout>
@@ -398,11 +382,8 @@ export function CreateTestPage() {
                   id="numberOfQuestions"
                   type="number"
                   min={1}
-                  value={numberOfQuestions === '' ? '' : numberOfQuestions}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setNumberOfQuestions(v === '' ? '' : parseInt(v, 10) || '');
-                  }}
+                  value={questionLimitNumForSave}
+                  disabled
                   placeholder="e.g. 10"
                 />
               </div>
