@@ -20,7 +20,7 @@ export function PublicLayout({ children }: PublicLayoutProps) {
           <Link to="/" className="flex items-center gap-2">
             <img
               src="https://mindchamps-prod-wp.s3.ap-southeast-1.amazonaws.com/wp-content/uploads/2020/02/04104625/logo-color.png"
-              alt="LearnQuest"
+              alt="Champs SMART"
               className="h-10 w-auto"
             />
           </Link>
@@ -57,13 +57,13 @@ export function PublicLayout({ children }: PublicLayoutProps) {
             <div className="flex items-center gap-2">
               <img
                 src="https://mindchamps-prod-wp.s3.ap-southeast-1.amazonaws.com/wp-content/uploads/2020/02/04104625/logo-color.png"
-                alt="LearnQuest"
+                alt="Champs SMART"
                 className="h-8 w-auto grayscale opacity-80 hover:grayscale-0 hover:opacity-100 transition-all"
               />
             </div>
 
             <p className="text-muted-foreground text-sm">
-              © 2024 LearnQuest. Making learning fun for everyone.
+              © 2024 <span className="text-primary font-medium">Champs</span><span className="text-black font-medium"> SMART</span>. Making learning fun for everyone.
             </p>
           </div>
         </div>

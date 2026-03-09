@@ -55,7 +55,11 @@ export const queryKeys = {
   attemptDetails: (attemptId: string) => ["attemptDetails", attemptId] as const,
 
   // Analytics
-  analytics: ["analytics"] as const,
+  analytics: (filters?: import("@/services/api/analytics").AnalyticsFilters) =>
+    ["analytics", filters ?? null] as const,
+  analyticsFilterOptions: ["analyticsFilterOptions"] as const,
+  analyticsCharts: (filters?: import("@/services/api/analytics").AnalyticsFilters) =>
+    ["analyticsCharts", filters ?? null] as const,
   testAnalytics: (testId: string) => ["analytics", "test", testId] as const,
 
   // Question Bank
@@ -497,17 +501,46 @@ export function useCompleteAttempt() {
 // Analytics Hooks
 // ============================================
 
-export function useAnalytics() {
+export function useAnalyticsFilters() {
   return useQuery({
-    queryKey: queryKeys.analytics,
-    queryFn: api.getOverallAnalytics,
+    queryKey: queryKeys.analyticsFilterOptions,
+    queryFn: api.getAnalyticsFilterOptions,
   });
 }
 
-export function useSuspenseAnalytics() {
+export function useAnalytics(
+  filters?: import("@/services/api/analytics").AnalyticsFilters,
+) {
+  return useQuery({
+    queryKey: queryKeys.analytics(filters),
+    queryFn: () => api.getOverallAnalytics(filters),
+  });
+}
+
+export function useSuspenseAnalytics(
+  filters?: import("@/services/api/analytics").AnalyticsFilters,
+) {
   return useSuspenseQuery({
-    queryKey: queryKeys.analytics,
-    queryFn: api.getOverallAnalytics,
+    queryKey: queryKeys.analytics(filters),
+    queryFn: () => api.getOverallAnalytics(filters),
+  });
+}
+
+export function useAnalyticsChartsData(
+  filters?: import("@/services/api/analytics").AnalyticsFilters,
+) {
+  return useQuery({
+    queryKey: queryKeys.analyticsCharts(filters),
+    queryFn: () => api.getAnalyticsChartsData(filters),
+  });
+}
+
+export function useSuspenseAnalyticsChartsData(
+  filters?: import("@/services/api/analytics").AnalyticsFilters,
+) {
+  return useSuspenseQuery({
+    queryKey: queryKeys.analyticsCharts(filters),
+    queryFn: () => api.getAnalyticsChartsData(filters),
   });
 }
 
@@ -538,7 +571,7 @@ export function useAllTestAttempts(
 export function usePerformanceMetrics(
   page = 1,
   pageSize = 20,
-  filters?: { search?: string; testId?: string },
+  filters?: { search?: string; testId?: string; studentId?: string },
 ) {
   return useQuery({
     queryKey: ["performanceMetrics", page, pageSize, filters],
@@ -549,7 +582,7 @@ export function usePerformanceMetrics(
 export function useSuspensePerformanceMetrics(
   page = 1,
   pageSize = 20,
-  filters?: { search?: string; testId?: string },
+  filters?: { search?: string; testId?: string; studentId?: string },
 ) {
   return useSuspenseQuery({
     queryKey: ["performanceMetrics", page, pageSize, filters],
@@ -557,17 +590,17 @@ export function useSuspensePerformanceMetrics(
   });
 }
 
-export function useAllStudentMetrics(testId?: string) {
+export function useAllStudentMetrics(testId?: string, studentId?: string) {
   return useQuery({
-    queryKey: ["allStudentMetrics", testId],
-    queryFn: () => api.getAllStudentMetrics(testId),
+    queryKey: ["allStudentMetrics", testId, studentId],
+    queryFn: () => api.getAllStudentMetrics(testId, studentId),
   });
 }
 
-export function useSuspenseAllStudentMetrics(testId?: string) {
+export function useSuspenseAllStudentMetrics(testId?: string, studentId?: string) {
   return useSuspenseQuery({
-    queryKey: ["allStudentMetrics", testId],
-    queryFn: () => api.getAllStudentMetrics(testId),
+    queryKey: ["allStudentMetrics", testId, studentId],
+    queryFn: () => api.getAllStudentMetrics(testId, studentId),
   });
 }
 

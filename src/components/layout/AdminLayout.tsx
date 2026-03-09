@@ -74,7 +74,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             <Link to="/admin" className="flex items-center gap-2 justify-center">
               <img
                 src="https://mindchamps-prod-wp.s3.ap-southeast-1.amazonaws.com/wp-content/uploads/2020/02/04104502/logo-white.png"
-                alt="LearnQuest"
+                alt="Champs SMART"
                 className="h-8 w-auto"
               />
             </Link>
@@ -145,7 +145,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           >
             <Menu className="w-5 h-5" />
           </button>
-          <span className="font-semibold">LearnQuest Admin</span>
+          <span className="font-semibold"><span className="text-primary">Champs</span><span className="text-black"> SMART</span> Admin</span>
           <div className="w-9" /> {/* Spacer */}
         </header>
 

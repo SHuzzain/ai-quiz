@@ -2,9 +2,10 @@ import { motion } from 'framer-motion';
 import { Trophy, TrendingUp, Target, Users, Activity } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useSuspenseAnalytics } from '@/hooks/useApi';
+import type { AnalyticsFilters } from '@/services/api/analytics';
 
-export function AdminStatsCards() {
-    const { data: analytics } = useSuspenseAnalytics();
+export function AdminStatsCards({ filters }: { filters?: AnalyticsFilters }) {
+    const { data: analytics } = useSuspenseAnalytics(filters);
 
     const stats = [
         {

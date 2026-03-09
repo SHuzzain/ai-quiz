@@ -188,7 +188,7 @@ export function LandingPage() {
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              How LearnQuest Works
+              How <span className="text-primary">Champs</span><span className="text-black"> SMART</span> Works
             </h2>
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
               Simple for parents, fun for kids.
@@ -258,7 +258,7 @@ export function LandingPage() {
               Ready to Start Your Child's Learning Adventure?
             </h2>
             <p className="text-xl text-muted-foreground mb-10">
-              Join thousands of happy families already using LearnQuest.
+              Join thousands of happy families already using <span className="text-primary font-medium">Champs</span><span className="text-black font-medium"> SMART</span>.
             </p>
             <Link to="/auth?mode=signup" className="btn-kid inline-flex items-center">
               <Sparkles className="w-5 h-5 mr-2" />

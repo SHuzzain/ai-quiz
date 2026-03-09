@@ -112,6 +112,8 @@ export interface TestAttempt {
   questionsAttemptedCount: number;
   /** Test title (when loaded with attempt, e.g. getTestAttempt). */
   testTitle?: string;
+  /** Test duration in minutes (when loaded with attempt, for countdown). */
+  durationMinutes?: number;
 
   // AI & Advanced Metrics
   basicScore?: number;

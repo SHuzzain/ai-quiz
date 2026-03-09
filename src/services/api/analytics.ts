@@ -117,38 +117,153 @@ export async function savePerformanceMetrics(
   };
 }
 
+export interface AnalyticsFilters {
+  studentId?: string;
+  testId?: string;
+  topic?: string;
+  concept?: string;
+}
+
+export interface AnalyticsFilterOptions {
+  students: { id: string; name: string }[];
+  tests: { id: string; title: string }[];
+  topics: string[];
+  concepts: string[];
+}
+
+/** Extract unique topics and concepts from tests.conditions JSONB */
+function getTestConditionValues(conditions: Json | null): { topics: string[]; concepts: string[] } {
+  const topics = new Set<string>();
+  const concepts = new Set<string>();
+  if (conditions == null || !Array.isArray(conditions)) return { topics: [], concepts: [] };
+  for (const c of conditions) {
+    if (c && typeof c === "object") {
+      const x = c as { topics?: string[]; concept?: string[] };
+      (x.topics ?? []).forEach((t) => topics.add(t));
+      (x.concept ?? []).forEach((c) => concepts.add(c));
+    }
+  }
+  return {
+    topics: Array.from(topics).filter(Boolean).sort(),
+    concepts: Array.from(concepts).filter(Boolean).sort(),
+  };
+}
+
 /**
- * Get overall analytics
+ * Get filter options for analytics (students, tests, topics, concepts)
  */
-export async function getOverallAnalytics(): Promise<OverallAnalytics> {
-  const { count: tests } = await supabase
+export async function getAnalyticsFilterOptions(): Promise<AnalyticsFilterOptions> {
+  const [studentsRes, testsRes] = await Promise.all([
+    supabase
+      .from("user_roles")
+      .select("user_id")
+      .eq("role", "student"),
+    supabase.from("tests").select("id, title, conditions"),
+  ]);
+
+  const studentIds = (studentsRes.data ?? []).map((r) => r.user_id);
+  const tests = (testsRes.data ?? []) as { id: string; title: string; conditions: Json }[];
+
+  let students: { id: string; name: string }[] = [];
+  if (studentIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("user_id, name")
+      .in("user_id", studentIds);
+    const nameByUserId = new Map<string, string>();
+    (profiles ?? []).forEach((p) => nameByUserId.set(p.user_id, p.name || p.user_id));
+    students = studentIds.map((id) => ({ id, name: nameByUserId.get(id) || id }));
+  }
+
+  const topicsSet = new Set<string>();
+  const conceptsSet = new Set<string>();
+  tests.forEach((t) => {
+    const { topics: tTopics, concepts: tConcepts } = getTestConditionValues(t.conditions);
+    tTopics.forEach((x) => topicsSet.add(x));
+    tConcepts.forEach((x) => conceptsSet.add(x));
+  });
+  const topics = Array.from(topicsSet).filter(Boolean).sort();
+  const concepts = Array.from(conceptsSet).filter(Boolean).sort();
+
+  return {
+    students,
+    tests: tests.map((t) => ({ id: t.id, title: t.title })),
+    topics,
+    concepts,
+  };
+}
+
+/** Get test IDs that have the given topic or concept in conditions */
+async function getTestIdsByTopicOrConcept(
+  topic?: string,
+  concept?: string,
+): Promise<Set<string> | null> {
+  if (!topic && !concept) return null;
+  const { data: tests } = await supabase.from("tests").select("id, conditions");
+  if (!tests?.length) return new Set();
+  const ids = new Set<string>();
+  for (const t of tests as { id: string; conditions: Json }[]) {
+    const { topics: topicsList, concepts: conceptsList } = getTestConditionValues(t.conditions);
+    const matchTopic = !topic || topicsList.some((x) => x === topic);
+    const matchConcept = !concept || conceptsList.some((x) => x === concept);
+    if (matchTopic && matchConcept) ids.add(t.id);
+  }
+  return ids;
+}
+
+/**
+ * Get overall analytics, optionally filtered by student, test, topic, concept
+ */
+export async function getOverallAnalytics(
+  filters?: AnalyticsFilters,
+): Promise<OverallAnalytics> {
+  const { count: testsCount } = await supabase
     .from("tests")
     .select("*", { count: "exact", head: true });
 
-  const { count: students } = await supabase
+  const { count: studentsCount } = await supabase
     .from("user_roles")
     .select("*", { count: "exact", head: true })
     .eq("role", "student");
 
-  const { data: attemptsData, error } = await supabase.from("test_attempts")
-    .select(`
+  let query = supabase.from("test_attempts").select(`
       id,
       score,
       time_taken_seconds,
       hints_used,
       status,
       test_id,
+      student_id,
+      completed_at,
       test:tests(title)
     `);
 
+  if (filters?.studentId) {
+    query = query.eq("student_id", filters.studentId);
+  }
+  if (filters?.testId) {
+    query = query.eq("test_id", filters.testId);
+  }
+
+  const { data: attemptsData, error } = await query;
   if (error) throw error;
 
-  const attempts = attemptsData || [];
+  let attempts = attemptsData || [];
+
+  if (filters?.topic || filters?.concept) {
+    const allowedTestIds = await getTestIdsByTopicOrConcept(filters.topic, filters.concept);
+    if (allowedTestIds && allowedTestIds.size > 0) {
+      attempts = attempts.filter((a: { test_id: string }) => allowedTestIds.has(a.test_id));
+    } else if (allowedTestIds && allowedTestIds.size === 0) {
+      attempts = [];
+    }
+  }
+
   const totalAttempts = attempts.length;
 
-  const completedAttempts = attempts.filter((a) => a.status === "completed");
+  const completedAttempts = attempts.filter((a: { status: string }) => a.status === "completed");
   const totalScore = completedAttempts.reduce(
-    (sum, a) => sum + (a.score || 0),
+    (sum: number, a: { score?: number }) => sum + (a.score || 0),
     0,
   );
   const averageScore =
@@ -158,9 +273,9 @@ export async function getOverallAnalytics(): Promise<OverallAnalytics> {
 
   const contentMap = new Map<string, TestAnalytics>();
 
-  attempts.forEach((attempt) => {
+  attempts.forEach((attempt: { test_id: string; test: unknown; status: string; score?: number; time_taken_seconds?: number; hints_used?: number }) => {
     const testId = attempt.test_id;
-    const testData = attempt.test as unknown as { title: string } | null;
+    const testData = attempt.test as { title: string } | null;
     const testTitle = testData?.title || "Unknown Test";
 
     if (!contentMap.has(testId)) {
@@ -181,24 +296,24 @@ export async function getOverallAnalytics(): Promise<OverallAnalytics> {
 
   const testAnalytics: TestAnalytics[] = Array.from(contentMap.values()).map(
     (metric) => {
-      const testAttempts = attempts.filter((a) => a.test_id === metric.testId);
-      const completed = testAttempts.filter((a) => a.status === "completed");
+      const testAttempts = attempts.filter((a: { test_id: string }) => a.test_id === metric.testId);
+      const completed = testAttempts.filter((a: { status: string }) => a.status === "completed");
 
       const avgScore =
         completed.length > 0
-          ? completed.reduce((sum, a) => sum + (a.score || 0), 0) /
+          ? completed.reduce((sum: number, a: { score?: number }) => sum + (a.score || 0), 0) /
             completed.length
           : 0;
 
       const avgTime =
         completed.length > 0
-          ? completed.reduce((sum, a) => sum + (a.time_taken_seconds || 0), 0) /
+          ? completed.reduce((sum: number, a: { time_taken_seconds?: number }) => sum + (a.time_taken_seconds || 0), 0) /
             completed.length
           : 0;
 
       const avgHints =
         completed.length > 0
-          ? completed.reduce((sum, a) => sum + (a.hints_used || 0), 0) /
+          ? completed.reduce((sum: number, a: { hints_used?: number }) => sum + (a.hints_used || 0), 0) /
             completed.length
           : 0;
 
@@ -218,12 +333,113 @@ export async function getOverallAnalytics(): Promise<OverallAnalytics> {
   );
 
   return {
-    totalTests: tests || 0,
-    totalStudents: students || 0,
+    totalTests: testsCount || 0,
+    totalStudents: studentsCount || 0,
     totalAttempts: totalAttempts,
     averageScore,
     testAnalytics,
   };
+}
+
+export interface ScoreOverTimePoint {
+  date: string;
+  attempts: number;
+  avgScore: number;
+}
+
+export interface CompletionBreakdownItem {
+  name: string;
+  value: number;
+}
+
+export interface HintsDistributionItem {
+  range: string;
+  count: number;
+}
+
+export interface AnalyticsChartsData {
+  scoreOverTime: ScoreOverTimePoint[];
+  completionBreakdown: CompletionBreakdownItem[];
+  hintsDistribution: HintsDistributionItem[];
+}
+
+/**
+ * Get chart-ready data for analytics (score trend, completion, hints), with optional filters
+ */
+export async function getAnalyticsChartsData(
+  filters?: AnalyticsFilters,
+): Promise<AnalyticsChartsData> {
+  let query = supabase.from("test_attempts").select(`
+      test_id,
+      score,
+      status,
+      hints_used,
+      completed_at
+    `);
+
+  if (filters?.studentId) query = query.eq("student_id", filters.studentId);
+  if (filters?.testId) query = query.eq("test_id", filters.testId);
+
+  const { data: attemptsData, error } = await query;
+  if (error) throw error;
+
+  let list = (attemptsData ?? []) as {
+    test_id: string;
+    score: number | null;
+    status: string;
+    hints_used: number | null;
+    completed_at: string | null;
+  }[];
+
+  if (filters?.topic || filters?.concept) {
+    const allowedTestIds = await getTestIdsByTopicOrConcept(filters.topic, filters.concept);
+    if (allowedTestIds && allowedTestIds.size === 0) {
+      list = [];
+    } else if (allowedTestIds && allowedTestIds.size > 0) {
+      list = list.filter((a) => allowedTestIds.has(a.test_id));
+    }
+  }
+
+  const byDate: Record<string, { sum: number; count: number }> = {};
+  const completionCounts: Record<string, number> = { completed: 0, in_progress: 0, abandoned: 0 };
+  const hintsBuckets: Record<string, number> = { "0": 0, "1-2": 0, "3-5": 0, "6+": 0 };
+
+  for (const a of list) {
+    const status = (a.status === "completed" ? "completed" : a.status === "in_progress" ? "in_progress" : "abandoned") as keyof typeof completionCounts;
+    completionCounts[status] = (completionCounts[status] ?? 0) + 1;
+
+    const hints = a.hints_used ?? 0;
+    if (hints <= 0) hintsBuckets["0"]++;
+    else if (hints <= 2) hintsBuckets["1-2"]++;
+    else if (hints <= 5) hintsBuckets["3-5"]++;
+    else hintsBuckets["6+"]++;
+
+    const dateStr = a.completed_at ? a.completed_at.slice(0, 10) : null;
+    if (dateStr && a.status === "completed") {
+      if (!byDate[dateStr]) byDate[dateStr] = { sum: 0, count: 0 };
+      byDate[dateStr].count++;
+      byDate[dateStr].sum += a.score ?? 0;
+    }
+  }
+
+  const scoreOverTime: ScoreOverTimePoint[] = Object.entries(byDate)
+    .map(([date, v]) => ({ date, attempts: v.count, avgScore: v.count > 0 ? Math.round(v.sum / v.count) : 0 }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const completionBreakdown: CompletionBreakdownItem[] = [
+    { name: "Completed", value: completionCounts.completed ?? 0 },
+    { name: "In Progress", value: completionCounts.in_progress ?? 0 },
+    { name: "Abandoned", value: completionCounts.abandoned ?? 0 },
+  ].filter((x) => x.value > 0);
+
+  const hintsDistribution: HintsDistributionItem[] = [
+    { range: "0", count: hintsBuckets["0"] },
+    { range: "1-2", count: hintsBuckets["1-2"] },
+    { range: "3-5", count: hintsBuckets["3-5"] },
+    { range: "6+", count: hintsBuckets["6+"] },
+  ];
+
+  return { scoreOverTime, completionBreakdown, hintsDistribution };
 }
 
 /**
@@ -427,7 +643,7 @@ export async function getAllTestAttempts(
 export async function getPerformanceMetrics(
   page = 1,
   pageSize = 20,
-  filters?: { search?: string; testId?: string },
+  filters?: { search?: string; testId?: string; studentId?: string },
 ) {
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
@@ -443,6 +659,10 @@ export async function getPerformanceMetrics(
 
   if (filters?.testId && filters.testId !== "all") {
     query = query.eq("test_id", filters.testId);
+  }
+
+  if (filters?.studentId) {
+    query = query.eq("student_id", filters.studentId);
   }
 
   if (filters?.search) {
@@ -495,7 +715,7 @@ export async function getPerformanceMetrics(
 /**
  * Get all student metrics for charts (Unpaginated, lightweight)
  */
-export async function getAllStudentMetrics(testId?: string) {
+export async function getAllStudentMetrics(testId?: string, studentId?: string) {
   let query = supabase.from("performance_metrics").select(
     `
       student_id,
@@ -509,6 +729,10 @@ export async function getAllStudentMetrics(testId?: string) {
 
   if (testId && testId !== "all") {
     query = query.eq("test_id", testId);
+  }
+
+  if (studentId) {
+    query = query.eq("student_id", studentId);
   }
 
   const { data, error } = await query.order("calculated_at", {
@@ -533,6 +757,9 @@ export async function getAllStudentMetrics(testId?: string) {
   return metrics.map((m) => ({
     studentId: m.student_id,
     averageBasicScore: Number(m.average_basic_score) || 0,
+    averageLearningEngagement: Number(m.average_learning_engagement) || 0,
+    totalAttempts: m.total_attempts || 0,
+    studentName: m.student?.name || "Unknown",
     studentAvatar: m.student?.avatar_url || "Unknown",
     testTitle: m.test?.title || "Unknown",
   }));

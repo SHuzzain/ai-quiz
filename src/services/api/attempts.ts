@@ -64,25 +64,25 @@ export async function getStudentAttempts(
 }
 
 /**
- * Get single test attempt by ID (with test title for UI).
+ * Get single test attempt by ID (with test title and duration for UI).
  */
 export async function getTestAttempt(
   attemptId: string,
 ) {
   const { data: row, error } = await supabase
     .from("test_attempts")
-    .select("*, tests(title)")
+    .select("*, tests(title, duration)")
     .eq("id", attemptId)
     .single();
 
   if (error || !row) return null;
 
-  const attempt = row;
-
+  const attempt = row as Tables<"test_attempts"> & { tests?: { title?: string; duration?: number } | null };
   const { tests, ...attemptRow } = attempt;
   return {
     ...mapAttemptRow(attemptRow),
     testTitle: tests?.title,
+    durationMinutes: tests?.duration ?? 0,
   };
 }
 

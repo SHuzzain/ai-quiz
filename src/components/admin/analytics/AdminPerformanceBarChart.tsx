@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useSuspenseAnalytics } from '@/hooks/useApi';
+import type { AnalyticsFilters } from '@/services/api/analytics';
 import {
     BarChart,
     Bar,
@@ -12,8 +13,8 @@ import {
     Cell
 } from 'recharts';
 
-export function AdminPerformanceBarChart() {
-    const { data: analytics } = useSuspenseAnalytics();
+export function AdminPerformanceBarChart({ filters }: { filters?: AnalyticsFilters }) {
+    const { data: analytics } = useSuspenseAnalytics(filters);
 
     const testPerformanceData = analytics?.testAnalytics.map((t) => ({
         name: t.testTitle.length > 15 ? t.testTitle.substring(0, 15) + '...' : t.testTitle,

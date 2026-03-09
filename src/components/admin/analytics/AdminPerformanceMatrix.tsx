@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useSuspenseAllStudentMetrics } from '@/hooks/useApi';
+import type { AnalyticsFilters } from '@/services/api/analytics';
 import {
     ScatterChart,
     Scatter,
@@ -12,8 +13,8 @@ import {
     ResponsiveContainer
 } from 'recharts';
 
-export function AdminPerformanceMatrix() {
-    const { data: allMetrics } = useSuspenseAllStudentMetrics();
+export function AdminPerformanceMatrix({ filters }: { filters?: AnalyticsFilters }) {
+    const { data: allMetrics } = useSuspenseAllStudentMetrics(filters?.testId, filters?.studentId);
 
     // Scatter Chart Data: Engagement vs Score
     const maxScore = Math.max(...(allMetrics || []).map(m => m.averageBasicScore), 0);

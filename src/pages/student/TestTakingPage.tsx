@@ -3,7 +3,7 @@
  * Shows one question at a time with hints and micro-learning
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -18,7 +18,8 @@ import {
   FileText,
   Volume2,
   Loader,
-  Loader2
+  Loader2,
+  Clock
 } from 'lucide-react';
 import { useSubmitAnswer, useHint, useCompleteAttempt, useTrackStudyMaterialDownload, useMicroLearning, useTestAttempt, useQuestion } from '@/hooks/useApi';
 import { Button } from '@/components/ui/button';
@@ -48,6 +49,24 @@ export function TestTakingPage() {
   const [results, setResults] = useState<{ questionId: string; correct: boolean; hintsUsed: number }[]>([]);
   const [testStartTime] = useState(Date.now());
   const [questionStartTime, setQuestionStartTime] = useState(Date.now());
+  const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
+
+  const durationMinutes = attempt?.durationMinutes ?? 0;
+  const totalDurationSeconds = durationMinutes * 60;
+
+  useEffect(() => {
+    if (!attempt?.startedAt || durationMinutes <= 0) return;
+    const startedAt = typeof attempt.startedAt === 'string' ? new Date(attempt.startedAt).getTime() : (attempt.startedAt as Date).getTime();
+    const tick = () => {
+      const elapsed = Math.floor((Date.now() - startedAt) / 1000);
+      const remaining = Math.max(0, totalDurationSeconds - elapsed);
+      setRemainingSeconds(remaining);
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [attempt?.startedAt, durationMinutes, totalDurationSeconds]);
+
   const totalQuestions = attempt?.totalQuestions ?? 0;
   const currentQuestionNumber = (attempt?.attemptedQuestionsCount ?? 1);
   const totalHintsAvailable = 3;
@@ -283,11 +302,30 @@ export function TestTakingPage() {
     <div className="min-h-screen bg-gradient-to-br from-secondary via-background to-secondary/50 p-4 md:p-8">
       {/* Header */}
       <div className="max-w-3xl mx-auto mb-8">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <h1 className="text-xl font-bold">{attempt.testTitle ?? 'Test'}</h1>
-          <Button variant="ghost" onClick={() => navigate('/student')}>
-            <X className="w-5 h-5" />
-          </Button>
+          <div className="flex items-center gap-3">
+            {durationMinutes > 0 && remainingSeconds !== null && (
+              <div
+                className={`flex items-center gap-2 rounded-xl px-4 py-2 font-mono text-lg font-bold tabular-nums ${
+                  remainingSeconds <= 60
+                    ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                    : remainingSeconds <= 300
+                      ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
+                      : 'bg-primary/10 text-primary'
+                }`}
+                title="Time remaining"
+              >
+                <Clock className="w-5 h-5 shrink-0" />
+                <span>
+                  {Math.floor(remainingSeconds / 60)}:{(remainingSeconds % 60).toString().padStart(2, '0')}
+                </span>
+              </div>
+            )}
+            <Button variant="ghost" onClick={() => navigate('/student')}>
+              <X className="w-5 h-5" />
+            </Button>
+          </div>
         </div>
 
         {/* Progress bar */}

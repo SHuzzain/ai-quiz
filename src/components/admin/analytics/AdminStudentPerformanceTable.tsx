@@ -20,15 +20,20 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useSuspensePerformanceMetrics } from '@/hooks/useApi';
+import type { AnalyticsFilters } from '@/services/api/analytics';
 
-export function AdminStudentPerformanceTable() {
+export function AdminStudentPerformanceTable({ filters }: { filters?: AnalyticsFilters }) {
     const [page, setPage] = useState(1);
     const pageSize = 8;
     const [searchTerm, setSearchTerm] = useState('');
     const [inputValue, setInputValue] = useState('');
     const [isPending, startTransition] = useTransition();
 
-    const { data: performanceMetrics } = useSuspensePerformanceMetrics(page, pageSize, { search: searchTerm });
+    const { data: performanceMetrics } = useSuspensePerformanceMetrics(page, pageSize, {
+        search: searchTerm,
+        testId: filters?.testId,
+        studentId: filters?.studentId,
+    });
 
     return (
         <motion.div
