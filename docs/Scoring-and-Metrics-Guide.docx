@@ -1,0 +1,218 @@
+# Kid Learns AI — Scoring & Metrics Guide
+
+This document describes how **Mastery**, **Engagement**, **Persistence**, and the **Final Score** are calculated in the application. All logic is implemented in `src/services/api/attempts.ts` when a test attempt is completed.
+
+---
+
+## 1. Final Score
+
+The **Final Score** is a percentage (0–100) that reflects performance across all questions, after penalties and optional time penalty.
+
+### 1.1 Per-Question Raw Score (AI Score)
+
+Each question has a **raw score** (0–100) used as the base for that question:
+
+| Source | How it is used |
+|--------|----------------|
+| **Attempt history** | If the question has `attempt_history` with `aiScore` values, the raw score is the **average** of those AI scores (rounded). |
+| **Single AI score** | If no attempt history, the value from `ai_score` is used. |
+| **Fallback** | If neither exists: **100** if the answer was marked correct (`is_correct`), otherwise **0**. |
+
+A question is counted as **correct** when its raw score is **≥ 60**.
+
+### 1.2 Per-Question Penalties
+
+Before contributing to the total, the raw score is reduced by penalties. Penalties are scaled by a **difficulty multiplier** (see table below).
+
+| Penalty type | Rule | Base amount |
+|--------------|------|-------------|
+| **Hints** | Per hint used on the question | 10 points per hint |
+| **Micro-learning** | Student viewed micro-learning for this question | 20 points |
+| **Study material** | Student downloaded study material for this question | 20 points |
+
+**Total penalty (before difficulty):**  
+`(hints × 10) + (micro_learning ? 20 : 0) + (study_material ? 20 : 0)`
+
+**After difficulty:**  
+`Total penalty = Base total penalty × Difficulty multiplier`
+
+### 1.3 Difficulty Multiplier
+
+Used to scale penalties (and thus affect how much each question contributes):
+
+| Difficulty level | Multiplier |
+|------------------|------------|
+| 1 | 1.0 |
+| 2 | 0.9 |
+| 3 | 0.75 |
+| 4 | 0.6 |
+| 5 | 0.5 |
+| null / undefined | 1.0 |
+
+### 1.4 Per-Question Score and Weighted Mark
+
+| Step | Formula |
+|------|--------|
+| Post-penalty score | `postPenaltyScore = max(0, rawScore − totalPenalty)` |
+| Weighted mark | `weightedMark = (postPenaltyScore / 100) × questionMark` |
+
+`questionMark` is the mark/weight assigned to that question in the test.  
+All weighted marks are summed, then normalized to the test’s total mark:
+
+- `totalWeightedMarks = (sum of weightedMark) / totalQuestionMarks × testTotalMark`
+- `finalScoreBase = round((totalWeightedMarks / testTotalMark) × 100)`
+
+### 1.5 Time Penalty (Optional)
+
+If the test has a **duration limit** (in minutes):
+
+| Condition | Time penalty applied |
+|-----------|------------------------|
+| Time taken ≤ duration limit | No penalty |
+| Time taken > duration limit | `extraMinutes = floor(timeTakenMinutes − durationLimit)` |
+| Penalty per extra minute | 1 point per extra minute |
+| If extra minutes > 5 | Additional **10 points** on top of the per-minute penalty |
+
+**Final score after time:**  
+`finalScore = max(0, finalScoreBase − timePenalty)`
+
+The value is then clamped to **0–100** and stored as the attempt’s **score**.
+
+### 1.6 Final Score Summary Table
+
+| Component | Description |
+|-----------|-------------|
+| Base | Weighted average of per-question scores (after penalties), as % of test total mark. |
+| Per-question score | Raw AI score minus (hints + micro-learning + study penalties) × difficulty multiplier. |
+| Weighting | Each question’s contribution uses its assigned `mark` and test `total_mark`. |
+| Time | If duration is set, penalty for exceeding time is applied; result clamped to 0–100. |
+
+---
+
+## 2. Engagement (Learning Engagement Rate)
+
+**Engagement** is the percentage of questions where the student used learning supports.
+
+### 2.1 Definition
+
+| Term | Meaning |
+|------|--------|
+| **Engaged question** | A question where the student either used **at least one hint** OR viewed **micro-learning** (or both). |
+| **Engagement rate** | Percentage of all attempted questions that are “engaged” in the above sense. |
+
+### 2.2 Formula
+
+| Step | Calculation |
+|------|-------------|
+| Engaged count | Count questions where `hints_used > 0` OR `micro_learning_viewed === true`. |
+| Total questions | Number of question attempts in the test attempt. |
+| **Engagement %** | `round((engagedCount / totalQuestions) × 100)` |
+
+If there are no questions, the engagement rate is **0**.
+
+### 2.3 What Does Not Count
+
+- **Study material downloaded** alone (without hints or micro-learning) does **not** count toward engagement in this metric.
+- Questions with **no hints and no micro-learning** are not “engaged” even if the student got the question right.
+
+---
+
+## 3. Persistence (Persistence Score)
+
+**Persistence** measures how often the student eventually got the question right after **multiple tries** on the same question.
+
+### 3.1 Definition
+
+| Term | Meaning |
+|------|--------|
+| **Multi-attempt question** | A question where `attempts_count > 1` (student tried more than once). |
+| **Persisted correct** | A multi-attempt question where the **final outcome** is correct (average AI score for that question ≥ 60). |
+| **Persistence score** | Percentage of multi-attempt questions that are “persisted correct”. |
+
+### 3.2 Formula
+
+| Step | Calculation |
+|------|-------------|
+| Multi-attempt questions | All questions with `attempts_count > 1`. |
+| Persisted correct count | Among those, count questions where `getAverageAiScore(question) ≥ 60`. |
+| **Persistence %** | If there is at least one multi-attempt question: `round((persistedCorrectCount / multiAttemptCount) × 100)`. |
+| **If no multi-attempt questions** | Persistence is set to **100** (nothing to persist on). |
+
+### 3.3 Interpretation
+
+- **High persistence** = When the student needed more than one try, they often kept trying and got it right.
+- **Low persistence** = Many questions were tried multiple times but still ended incorrect.
+
+---
+
+## 4. Mastery (Mastery Achieved)
+
+**Mastery** is a **boolean** flag: either the student **achieved mastery** for this attempt or not.
+
+### 4.1 Rule
+
+Mastery is achieved **only when both** conditions are true:
+
+| Condition | Threshold |
+|-----------|-----------|
+| **Final score** | ≥ 90% |
+| **First-attempt success rate** | ≥ 80% |
+
+### 4.2 First-Attempt Success Rate
+
+| Term | Meaning |
+|------|--------|
+| **First-attempt correct** | Question was correct (`is_correct`) and answered on the **first attempt** (`answered_on_first_attempt`). |
+| **First-attempt success rate** | `round((firstAttemptCorrectCount / totalQuestions) × 100)`. |
+
+### 4.3 Mastery Summary Table
+
+| Criterion | Required |
+|-----------|----------|
+| Final score | ≥ 90 |
+| First-attempt success rate | ≥ 80 |
+| **Mastery achieved** | **true** only if both are satisfied; otherwise **false**. |
+
+So: high overall score **and** strong performance on first tries are both required for mastery.
+
+---
+
+## 5. Quick Reference Tables
+
+### 5.1 All Metrics at a Glance
+
+| Metric | Type | Range / Values | Meaning |
+|--------|------|----------------|---------|
+| **Final score** | Percentage | 0–100 | Overall test score after penalties and time penalty. |
+| **Engagement** | Percentage | 0–100 | % of questions where student used hints or micro-learning. |
+| **Persistence** | Percentage | 0–100 (or 100 if no multi-attempt) | % of multi-try questions that were eventually answered correctly. |
+| **Mastery** | Boolean | true / false | true only if final score ≥ 90 and first-attempt success rate ≥ 80. |
+
+### 5.2 Penalties and Multipliers
+
+| Item | Value / formula |
+|------|------------------|
+| Hint penalty | 10 per hint |
+| Micro-learning penalty | 20 |
+| Study material penalty | 20 |
+| Difficulty 1–5 multiplier | 1.0, 0.9, 0.75, 0.6, 0.5 |
+| Time over limit | 1 per extra minute; +10 if extra > 5 minutes |
+
+### 5.3 Correctness and Supporting Metrics
+
+| Concept | Rule |
+|--------|------|
+| Question correct | Raw (average) AI score for that question ≥ 60. |
+| First-attempt success rate | % of questions correct on first attempt. |
+| Persistence denominator | Only questions with `attempts_count > 1`. |
+| Engagement denominator | All attempted questions. |
+
+---
+
+## 6. Where This Is Implemented
+
+- **File:** `src/services/api/attempts.ts`
+- **Function:** The logic runs when an attempt is **completed** (e.g. when submitting/finalizing the attempt).
+- **Stored in:** `test_attempts` table: `score`, `learning_engagement_rate`, `persistence_score`, `mastery_achieved`, plus breakdown in `ai_score_breakdown`.
+
+This document reflects the behavior of the application as implemented in that code.

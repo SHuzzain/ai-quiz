@@ -302,19 +302,19 @@ export async function getOverallAnalytics(
       const avgScore =
         completed.length > 0
           ? completed.reduce((sum: number, a: { score?: number }) => sum + (a.score || 0), 0) /
-            completed.length
+          completed.length
           : 0;
 
       const avgTime =
         completed.length > 0
           ? completed.reduce((sum: number, a: { time_taken_seconds?: number }) => sum + (a.time_taken_seconds || 0), 0) /
-            completed.length
+          completed.length
           : 0;
 
       const avgHints =
         completed.length > 0
           ? completed.reduce((sum: number, a: { hints_used?: number }) => sum + (a.hints_used || 0), 0) /
-            completed.length
+          completed.length
           : 0;
 
       const completionRate =
@@ -464,7 +464,7 @@ export async function getTestAnalytics(testId: string) {
   const avgTime =
     completed.length > 0
       ? completed.reduce((sum, a) => sum + (a.time_taken_seconds || 0), 0) /
-        completed.length
+      completed.length
       : 0;
 
   return {
@@ -719,6 +719,7 @@ export async function getAllStudentMetrics(testId?: string, studentId?: string) 
   let query = supabase.from("performance_metrics").select(
     `
       student_id,
+      test_id,
       average_basic_score,
       average_learning_engagement,
       total_attempts,
@@ -744,6 +745,7 @@ export async function getAllStudentMetrics(testId?: string, studentId?: string) 
   type MetricRow = Pick<
     Tables<"performance_metrics">,
     | "student_id"
+    | "test_id"
     | "average_basic_score"
     | "average_learning_engagement"
     | "total_attempts"
@@ -756,6 +758,7 @@ export async function getAllStudentMetrics(testId?: string, studentId?: string) 
 
   return metrics.map((m) => ({
     studentId: m.student_id,
+    testId: m.test_id,
     averageBasicScore: Number(m.average_basic_score) || 0,
     averageLearningEngagement: Number(m.average_learning_engagement) || 0,
     totalAttempts: m.total_attempts || 0,

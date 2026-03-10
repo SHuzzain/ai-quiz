@@ -65,9 +65,9 @@ export function StudentLayout({ children }: StudentLayoutProps) {
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2">
               <img
-                src="https://mindchamps-prod-wp.s3.ap-southeast-1.amazonaws.com/wp-content/uploads/2020/02/04104625/logo-color.png"
+                src="/champs-smart-logo.png"
                 alt="Champs SMART"
-                className="h-10 w-auto"
+                className="h-8 w-auto"
               />
             </Link>
 

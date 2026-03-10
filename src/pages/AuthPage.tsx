@@ -78,7 +78,7 @@ export function AuthPage() {
             <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center">
               <BookOpen className="w-6 h-6" />
             </div>
-            <span className="text-2xl font-bold"><span className="text-white">Champs</span><span className="text-black"> SMART</span></span>
+            <span className="text-2xl font-bold"><span className="text-black">Champs</span><span className="text-primary"> SMART</span></span>
           </div>
           
           <h1 className="text-4xl font-bold mb-4">
@@ -113,7 +113,7 @@ export function AuthPage() {
             <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'var(--gradient-kid)' }}>
               <Sparkles className="w-5 h-5 text-white" />
             </div>
-            <span className="text-xl font-bold"><span className="text-primary">Champs</span><span className="text-black"> SMART</span></span>
+            <span className="text-xl font-bold"><span className="text-black">Champs</span><span className="text-primary"> SMART</span></span>
           </div>
 
           <h2 className="text-2xl font-bold mb-2">

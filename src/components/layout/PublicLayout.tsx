@@ -19,9 +19,9 @@ export function PublicLayout({ children }: PublicLayoutProps) {
         <nav className="container mx-auto px-6 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
             <img
-              src="https://mindchamps-prod-wp.s3.ap-southeast-1.amazonaws.com/wp-content/uploads/2020/02/04104625/logo-color.png"
+              src="/champs-smart-logo.png"
               alt="Champs SMART"
-              className="h-10 w-auto"
+              className="h-8 w-auto"
             />
           </Link>
 
@@ -63,7 +63,7 @@ export function PublicLayout({ children }: PublicLayoutProps) {
             </div>
 
             <p className="text-muted-foreground text-sm">
-              © 2024 <span className="text-primary font-medium">Champs</span><span className="text-black font-medium"> SMART</span>. Making learning fun for everyone.
+              © 2024 <span className="text-black font-medium">Champs</span><span className="text-primary font-medium"> SMART</span>. Making learning fun for everyone.
             </p>
           </div>
         </div>

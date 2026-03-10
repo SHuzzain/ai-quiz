@@ -87,6 +87,20 @@ export async function getTestAttempt(
 }
 
 /**
+ * Get attempt detail by student id and test id
+ */
+export async function getAttemptDetailByStudentIdAndTestId(studentId: string, testId: string) {
+  const { data: attempt, error: attemptError } = await supabase
+    .from("test_attempts")
+    .select("*")
+    .eq("student_id", studentId)
+    .eq("test_id", testId)
+    .single();
+  if (attemptError || !attempt) throw attemptError;
+  return mapAttemptRow(attempt);
+}
+
+/**
  * Get detailed attempt result with question breakdown
  */
 export async function getAttemptDetails(attemptId: string) {
