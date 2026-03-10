@@ -288,7 +288,7 @@ export function StudentDashboard() {
                         }`} />
                     </div>
                     <div>
-                      <p className="font-semibold">Number Adventure</p>
+                      <p className="font-semibold">{attempt.testTitle || 'Unknown Test'}</p>
                       <p className="text-sm text-muted-foreground">
                         {attempt.correctAnswers}/{attempt.totalQuestions} correct
                       </p>
