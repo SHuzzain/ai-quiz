@@ -63,7 +63,7 @@ export function StudentLayout({ children }: StudentLayoutProps) {
         <div className="container mx-auto px-4">
           <div className="h-16 flex items-center justify-between">
             {/* Logo */}
-            <Link to="/" className="flex items-center gap-2">
+            <Link to="/student" className="flex items-center gap-2">
               <img
                 src="/champs-smart-logo.png"
                 alt="Champs SMART"
