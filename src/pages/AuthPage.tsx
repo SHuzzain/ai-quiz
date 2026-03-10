@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils';
 export function AuthPage() {
   const [searchParams] = useSearchParams();
   const initialMode = searchParams.get('mode') === 'signup' ? 'signup' : 'login';
-  
+
   const [mode, setMode] = useState<'login' | 'signup'>(initialMode);
   const [role, setRole] = useState<'student' | 'admin'>('student');
   const [showPassword, setShowPassword] = useState(false);
@@ -58,12 +58,12 @@ export function AuthPage() {
     <div className="min-h-screen bg-gradient-to-br from-secondary via-background to-secondary/50 flex">
       {/* Left side - Decorative */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
-        <div 
+        <div
           className="absolute inset-0"
           style={{ background: 'var(--gradient-kid)' }}
         />
         <div className="absolute inset-0 bg-black/20" />
-        
+
         {/* Floating shapes */}
         <div className="absolute inset-0">
           <div className="absolute top-20 left-20 w-20 h-20 bg-white/10 rounded-full animate-float" />
@@ -78,14 +78,14 @@ export function AuthPage() {
             <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center">
               <BookOpen className="w-6 h-6" />
             </div>
-            <span className="text-2xl font-bold"><span className="text-black">Champs</span><span className="text-primary"> SMART</span></span>
+            <span className="text-2xl font-bold"><span>Champs</span><span className="text-primary"> SMART</span></span>
           </div>
-          
+
           <h1 className="text-4xl font-bold mb-4">
             {mode === 'login' ? 'Welcome Back!' : 'Join the Adventure!'}
           </h1>
           <p className="text-white/80 text-lg max-w-md">
-            {mode === 'login' 
+            {mode === 'login'
               ? 'Continue your learning journey with fun quizzes and smart hints.'
               : 'Create an account and start learning with AI-powered quizzes.'}
           </p>
@@ -100,8 +100,8 @@ export function AuthPage() {
           className="w-full max-w-md"
         >
           {/* Back link */}
-          <Link 
-            to="/" 
+          <Link
+            to="/"
             className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-8 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -120,8 +120,8 @@ export function AuthPage() {
             {mode === 'login' ? 'Sign In' : 'Create Account'}
           </h2>
           <p className="text-muted-foreground mb-8">
-            {mode === 'login' 
-              ? 'Enter your credentials to access your account' 
+            {mode === 'login'
+              ? 'Enter your credentials to access your account'
               : 'Fill in your details to get started'}
           </p>
 
@@ -165,8 +165,8 @@ export function AuthPage() {
                       onClick={() => setRole('student')}
                       className={cn(
                         "p-4 rounded-xl border-2 text-left transition-all",
-                        role === 'student' 
-                          ? "border-primary bg-primary/5" 
+                        role === 'student'
+                          ? "border-primary bg-primary/5"
                           : "border-border hover:border-primary/50"
                       )}
                     >
@@ -178,8 +178,8 @@ export function AuthPage() {
                       onClick={() => setRole('admin')}
                       className={cn(
                         "p-4 rounded-xl border-2 text-left transition-all",
-                        role === 'admin' 
-                          ? "border-primary bg-primary/5" 
+                        role === 'admin'
+                          ? "border-primary bg-primary/5"
                           : "border-border hover:border-primary/50"
                       )}
                     >
@@ -231,8 +231,8 @@ export function AuthPage() {
               </div>
             </div>
 
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               className="w-full py-6 text-lg rounded-xl"
               disabled={isLoading}
             >
