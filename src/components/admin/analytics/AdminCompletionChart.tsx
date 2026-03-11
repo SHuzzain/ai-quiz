@@ -23,7 +23,7 @@ export function AdminCompletionChart({ filters }: { filters?: AnalyticsFilters }
         </CardHeader>
         <CardContent>
           <div className="h-[280px] w-full">
-            {chartData.length > 0 ? (
+            {chartData.some((d) => d.value > 0) ? (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
