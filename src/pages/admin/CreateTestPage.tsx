@@ -16,6 +16,7 @@ import {
   mapBankItemToAddQuestionPayload,
   type TestCondition,
 } from '@/services/api';
+import type { QuestionBankItemRow } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -49,20 +50,11 @@ export function CreateTestPage() {
   const deleteQuestion = useDeleteQuestion();
   const { data: questionBankList } = useQuestionBankItems({ pageSize: 500 });
 
-  /** Single mapped list (snake_case + id) for resolve and remaining; dedupe works across conditions. */
-  const mappedBankItems = useMemo(() => {
-    const items = questionBankList?.items ?? [];
-    return items.map((x) => ({
-      id: x.id,
-      topic: x.topic,
-      concept_tested: x.conceptTested,
-      question_text: x.questionText,
-      correct_answer: x.correctAnswer,
-      difficulty: x.difficulty,
-      marks: x.marks ?? 0,
-      working: x.working ?? null,
-    }));
-  }, [questionBankList]);
+  /** Full bank rows — condition helpers expect `QuestionBankItemRow`. */
+  const mappedBankItems = useMemo(
+    (): QuestionBankItemRow[] => questionBankList?.items ?? [],
+    [questionBankList],
+  );
 
   const [title, setTitle] = useState('');
   const [scheduledDate, setScheduledDate] = useState('');
@@ -111,11 +103,11 @@ export function CreateTestPage() {
   /** Count items in pool that match this condition (topic, concept, difficulty). */
   const countMatchingInPool = (
     cond: TestCondition,
-    pool: { topic: string; concept_tested: string; difficulty: number }[],
+    pool: { topic: string; conceptTested: string; difficulty: number }[],
   ) =>
     pool.filter((item) => {
       if (cond.topics.length > 0 && !cond.topics.includes(item.topic)) return false;
-      if (cond.concept.length > 0 && !cond.concept.includes(item.concept_tested)) return false;
+      if (cond.concept.length > 0 && !cond.concept.includes(item.conceptTested)) return false;
       if (item.difficulty !== cond.difficulty) return false;
       return true;
     }).length;
@@ -127,7 +119,7 @@ export function CreateTestPage() {
       const next = prev.map((cond, i) => {
         const remaining = getRemainingItemsAfterConditions(prev, i, mappedBankItems);
         const availableTopics = Array.from(new Set(remaining.map((x) => x.topic).filter(Boolean)));
-        const availableConcepts = Array.from(new Set(remaining.map((x) => x.concept_tested).filter(Boolean)));
+        const availableConcepts = Array.from(new Set(remaining.map((x) => x.conceptTested).filter(Boolean)));
         const availableDifficulties = Array.from(new Set(remaining.map((x) => x.difficulty))).sort((a, b) => a - b);
         const topicsOk = cond.topics.filter((t) => availableTopics.includes(t));
         const conceptOk = cond.concept.filter((c) => availableConcepts.includes(c));
@@ -408,7 +400,7 @@ export function CreateTestPage() {
             {conditions.map((cond, index) => {
               const remaining = getRemainingItemsAfterConditions(conditions, index, mappedBankItems);
               const availableTopics = Array.from(new Set(remaining.map((x) => x.topic).filter(Boolean)));
-              const availableConcepts = Array.from(new Set(remaining.map((x) => x.concept_tested).filter(Boolean)));
+              const availableConcepts = Array.from(new Set(remaining.map((x) => x.conceptTested).filter(Boolean)));
               const availableDifficulties = Array.from(new Set(remaining.map((x) => x.difficulty))).sort((a, b) => a - b);
               const matchingCount = countMatchingInPool(cond, remaining);
               const isAvailable = matchingCount >= Number(cond.numberOfQuestions ?? 0);

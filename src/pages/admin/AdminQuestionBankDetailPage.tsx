@@ -5,7 +5,6 @@ import { toast } from "sonner";
 import { FormProvider, useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { AIQuestionGenerator } from "@/components/admin/ai-generator/AIQuestionGenerator";
 import { QuestionsManager, QuestionEditorData } from "@/components/admin/questions/QuestionsManager";
 
@@ -188,11 +187,14 @@ export default function AdminQuestionBankDetailPage() {
                 if (lesson && lesson.files.length > 0) {
                     // Start extracting
                     Promise.all(lesson.files.map(async (f) => {
-                        const { data } = await supabase.storage.from('lessons').download(f.url);
-                        if (data) {
-                            return await data.text();
+                        const url = f.url.startsWith("http") ? f.url : `${import.meta.env.VITE_API_URL?.replace(/\/api\/?$/, "") ?? "http://localhost:4000"}${f.url.startsWith("/") ? "" : "/"}${f.url}`;
+                        try {
+                            const r = await fetch(url);
+                            const blob = await r.blob();
+                            return await blob.text();
+                        } catch {
+                            return "";
                         }
-                        return "";
                     })).then(texts => {
                         const fullText = texts.join('\n\n');
                         analyzeMutation.mutateAsync({ content: fullText }).then(() => {

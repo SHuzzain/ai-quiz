@@ -2,7 +2,7 @@
 // Core Types for AI Learning Platform
 // ============================================
 
-import { Json } from "@/integrations/supabase/types";
+import type { Json } from "@/types/json";
 
 export type UserRole = "admin" | "student";
 

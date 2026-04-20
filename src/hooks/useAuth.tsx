@@ -1,11 +1,10 @@
 /**
- * Authentication Context
- * Uses Supabase Auth with profiles and user_roles tables
+ * Authentication – JWT + REST API (replaces Supabase Auth)
  */
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, AuthState, UserRole } from '@/types';
-import { supabase } from '@/integrations/supabase/client';
+import { getStoredToken, setStoredToken } from '@/lib/api-client';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -18,30 +17,9 @@ interface AuthContextType extends AuthState {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-async function fetchUserProfile(userId: string): Promise<User | null> {
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('user_id', userId)
-    .single();
-
-  if (!profile) return null;
-
-  const { data: roleData } = await supabase
-    .from('user_roles')
-    .select('role')
-    .eq('user_id', userId)
-    .single();
-
-  return {
-    id: userId,
-    email: profile.email,
-    name: profile.name,
-    role: (roleData?.role as UserRole) || 'student',
-    avatarUrl: profile.avatar_url ?? undefined,
-    createdAt: new Date(profile.created_at),
-    lastActiveAt: new Date(profile.last_active_at),
-  };
+async function fetchUserProfile(): Promise<User | null> {
+  const { getCurrentUser } = await import('@/services/api');
+  return getCurrentUser();
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -51,42 +29,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    // Listen first, then check session
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (session?.user) {
-          // Use setTimeout to avoid potential deadlocks with Supabase client
-          setTimeout(async () => {
-            const profile = await fetchUserProfile(session.user.id);
-            setUser(profile);
-            setIsLoading(false);
-          }, 0);
-        } else {
-          setUser(null);
-          setIsLoading(false);
-        }
-      }
-    );
-
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user) {
-        const profile = await fetchUserProfile(session.user.id);
-        setUser(profile);
-      }
+    const token = getStoredToken();
+    if (!token) {
+      setUser(null);
       setIsLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+      return;
+    }
+    fetchUserProfile()
+      .then((u) => setUser(u))
+      .catch(() => {
+        setStoredToken(null);
+        setUser(null);
+      })
+      .finally(() => setIsLoading(false));
   }, []);
 
   const login = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw new Error(error.message);
-
-    const profile = await fetchUserProfile(data.user.id);
-    setUser(profile);
-
-    if (profile?.role === 'admin') {
+    const { loginUser } = await import('@/services/api');
+    const u = await loginUser({ email, password });
+    setUser(u);
+    if (u.role === 'admin') {
       navigate('/admin');
     } else {
       navigate('/student');
@@ -94,26 +56,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUp = async (email: string, password: string, name: string, role: UserRole) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: window.location.origin,
-        data: { name, role },
-      },
-    });
-    if (error) throw new Error(error.message);
-    if (!data.user) throw new Error('Sign up failed');
-
-    // If email confirmation required, user won't have a session yet
-    if (!data.session) {
-      throw new Error('Please check your email to confirm your account before signing in.');
-    }
-
-    const profile = await fetchUserProfile(data.user.id);
-    setUser(profile);
-
-    if (profile?.role === 'admin') {
+    const { signUpUser } = await import('@/services/api');
+    const u = await signUpUser({ email, password, name, role });
+    setUser(u);
+    if (u.role === 'admin') {
       navigate('/admin');
     } else {
       navigate('/student');
@@ -122,24 +68,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updateProfile = async (data: { name?: string; avatarUrl?: string }) => {
     if (!user) return;
-
-    // Optimistic update
-    setUser(prev => prev ? ({ ...prev, ...data }) : null);
-
+    setUser((prev) => (prev ? { ...prev, ...data } : null));
     try {
       const { updateUser } = await import('@/services/api');
       const updatedUser = await updateUser(user.id, data);
       setUser(updatedUser);
     } catch (error) {
-      // Revert on error - re-fetch profile
-      const profile = await fetchUserProfile(user.id);
+      const profile = await fetchUserProfile();
       setUser(profile);
       throw error;
     }
   };
 
   const logout = async () => {
-    await supabase.auth.signOut();
+    const { logoutUser } = await import('@/services/api');
+    await logoutUser();
     setUser(null);
     queryClient.clear();
     navigate('/');

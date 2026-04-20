@@ -1,6 +1,6 @@
 /**
  * API services – re-export domain modules.
- * Use @/integrations/supabase/types in domain files for type safety.
+ * Domain types live in @/types.
  */
 
 export * from "./tests";

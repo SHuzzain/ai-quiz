@@ -183,7 +183,7 @@ export function useTest(testId: string) {
 }
 
 export function useTestWithQuestions(testId: string) {
-  return useQuery({
+  return useQuery<TestWithQuestions>({
     queryKey: queryKeys.testWithQuestions(testId),
     queryFn: () => api.getTestWithQuestions(testId),
     enabled: !!testId,
